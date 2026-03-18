@@ -13,15 +13,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4 # 升级到 v4
         with:
-          fetch-depth: 0 # 获取完整历史以便提交
+          fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5 # 升级到 v5
         with:
           python-version: '3.9'
 
-      - run: pip install requests beautifulsoup4 openai
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 openai
 
       - name: Run Scraper
         env:
@@ -35,9 +38,11 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
+          # 确保 archive 目录存在，防止 git add 报错
+          mkdir -p archive
           git add index.html archive/*.html
-          git commit -m "Auto-update: Add daily report for $(date +'%Y-%m-%d')" || echo "No changes to commit"
-          git push origin main
+          # 只有在有变化时才提交，防止空提交报错
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update: $(date +'%Y-%m-%d')" && git push origin main)
 
       - name: Deploy to Pages
         uses: peaceiris/actions-gh-pages@v3
