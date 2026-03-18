@@ -31,10 +31,10 @@ def scrape_arxiv(category):
         dls = soup.find_all('dl', id='articles')
         if not dls: return None, []
         
-        target_date = soup.find_all('h3')[1].text.strip()
+        target_date = soup.find_all('h3')[0].text.strip()
         papers = []
-        dt_tags = dls[1].find_all('dt')
-        dd_tags = dls[1].find_all('dd')
+        dt_tags = dls[0].find_all('dt')
+        dd_tags = dls[0].find_all('dd')
         
         for dt, dd in zip(dt_tags, dd_tags):
             link_tag = dt.find('a', title='Abstract')
@@ -78,7 +78,7 @@ def process_with_ai(papers, date_text):
         1. 请从编号 {global_id_counter} 开始为筛选出的论文连续编号。
         2. 格式（Markdown）：
            ### {global_id_counter}. 🔥 [英文题目] (中文题目翻译)
-           - **PDF链接**: [点击跳转]({{url}})
+           - **论文链接**: [点击跳转](https://arxiv.org/abs/{{id}})
            - **核心亮点**: (一句话说明该文最核心的创新点)。
            - **深度解析**: (一段话详细描述技术方案、训练数据规模、实验结论及物理意义)。
            - **领域归类**: [归类版块]
