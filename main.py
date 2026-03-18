@@ -207,12 +207,15 @@ def generate_archive_and_index(date_text, content):
 
 if __name__ == "__main__":
     all_p = {}
-    actual_date = ""
+    date_info = None
     for cat in CATEGORIES:
-        d, ps = scrape_arxiv(cat)
-        if d: actual_date = d
+        info, total_len, ps = scrape_arxiv(cat)
+        if info: date_info = info
         for p in ps: all_p[p['id']] = p
     
-    final_list = list(all_p.values())
-    content = process_with_ai(final_list, actual_date)
-    if content: generate_archive_and_index(actual_date, content)
+    content = process_with_ai(list(all_p.values()))
+    
+    # 只要抓取到了日期信息（证明 Arxiv 没挂），就执行一次生成
+    # 这样 generate_archive_and_index 会重新扫描 archive 文件夹并刷新 index.html
+    if date_info: 
+        generate_archive_and_index(date_info, content or "")
