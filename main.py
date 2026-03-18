@@ -31,7 +31,7 @@ def scrape_arxiv(category):
         dls = soup.find_all('dl', id='articles')
         if not dls: return None, []
         
-        target_date = soup.find('h3')[1].text.strip()
+        target_date = soup.find_all('h3')[1].text.strip()
         papers = []
         dt_tags = dls[1].find_all('dt')
         dd_tags = dls[1].find_all('dd')
