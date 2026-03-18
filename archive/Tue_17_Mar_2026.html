@@ -1,0 +1,188 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+            <title>🤖 具身大模型简报 - Tue, 17 Mar 2026 (showing 20 of 147 entries)</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <style>
+                html, body { -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+                .sources-box { margin-top: 50px; padding: 20px; background: #f6f8fa; border: 1px dashed #d0d7de; border-radius: 10px; }
+                .sources-box textarea { width: 100%; height: 100px; margin: 10px 0; padding: 10px; font-family: monospace; font-size: 12px; border: 1px solid #d0d7de; border-radius: 6px; resize: none; }
+                .copy-btn { background-color: #2da44e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+            </style>
+        </head>
+        <body class="markdown-body">
+            <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
+            <h1>🤖 具身大模型简报 - Tue, 17 Mar 2026 (showing 20 of 147 entries)</h1>
+            <div id="content"></div>
+            
+        <div class="sources-box">
+            <h3>🔗 NotebookLM Sources 集合区 (共 20 篇)</h3>
+            <textarea id="sources-text" readonly>https://arxiv.org/html/2603.15046
+https://arxiv.org/html/2603.15257
+https://arxiv.org/html/2603.15169
+https://arxiv.org/html/2603.15152
+https://arxiv.org/html/2603.14977
+https://arxiv.org/html/2603.15359
+https://arxiv.org/html/2603.14604
+https://arxiv.org/html/2603.13925
+https://arxiv.org/html/2603.14605
+https://arxiv.org/html/2603.14371
+https://arxiv.org/html/2603.13788
+https://arxiv.org/html/2603.13782
+https://arxiv.org/html/2603.13781
+https://arxiv.org/html/2603.13707
+https://arxiv.org/html/2603.13825
+https://arxiv.org/html/2603.14851
+https://arxiv.org/html/2603.14523
+https://arxiv.org/html/2603.14497
+https://arxiv.org/html/2603.14392
+https://arxiv.org/html/2603.13615</textarea>
+            <button class="copy-btn" onclick="copySources()">📋 复制所有来源链接</button>
+        </div>
+        
+            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [AnoleVLA: Lightweight Vision-Language-Action Model with Deep State Space Models for Mobile Manipulation] (轻量级视觉-语言-动作模型与深度状态空间模型用于移动操作)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.15046)
+- **核心亮点**: 提出一种轻量级的VLA架构，结合深度状态空间模型，实现高效、低延迟的移动操作决策。
+- **深度解析**: 该工作设计了基于状态空间模型（SMM）的轻量化视觉-语言-动作（VLA）框架，通过参数共享和序列建模压缩计算开销，在保持高泛化能力的同时支持实时推理。其训练基于大规模跨具身数据集，融合多模态输入（图像、文本、动作历史），并通过注意力机制实现跨模态对齐。物理意义在于使小型机器人平台具备接近大型模型的复杂任务理解能力，推动具身智能在边缘设备上的部署。
+- **领域归类**: [VLA (Vision-Language-Action)、具身 Scaling Laws、多模态融合注意力]
+---
+### 2. 🔥 [HapticVLA: Contact-Rich Manipulation via Vision-Language-Action Model without Inference-Time Tactile Sensing] (无需推理时触觉感知的接触丰富操作通过视觉-语言-动作模型)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.15257)
+- **核心亮点**: 构建无需运行时触觉输入的触觉增强型VLA模型，通过预训练阶段模拟接触信息实现高精度抓取。
+- **深度解析**: 该研究提出一种基于合成接触信号注入的VLA训练范式，利用虚拟触觉数据增强视觉-语言-动作联合表示学习。模型在多源异构数据上训练，包含大量接触相关动作序列，并采用多模态融合注意力机制实现视觉与动作之间的动态对齐。其关键创新在于将触觉感知“内化”至模型语义空间，避免真实触觉传感器依赖，显著提升在无感测条件下的操作鲁棒性。技术层面支持大规模跨具身数据集迁移，体现具身Scaling Laws思想。
+- **领域归类**: [VLA (Vision-Language-Action)、多模态融合注意力、跨具身数据集]
+---
+### 3. 🔥 [ForceVLA2: Unleashing Hybrid Force-Position Control with Force Awareness for Contact-Rich Manipulation] (力感知赋能混合力-位置控制以实现接触丰富操作)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.15169)
+- **核心亮点**: 引入力感知机制的下一代VLA，实现对接触力的精细建模与混合控制策略生成。
+- **深度解析**: 本工作构建了一个双分支结构的VLA模型，分别处理视觉-语言输入与力反馈隐式表征，通过跨模态注意力融合生成兼具位置与力控制指令。其训练基于大规模接触式操作数据集，结合仿真与真实数据进行增量学习，形成可泛化至新任务的力敏感行为策略。该方法突破传统控制闭环限制，将力信息作为先验知识嵌入动作生成过程，属于世界模型与视频生成的延伸应用，体现世界-动作协同建模理念。同时满足跨具身数据集与多模态融合要求。
+- **领域归类**: [World-Action Model、多模态融合注意力、跨具身数据集]
+---
+### 4. 🔥 [Master Micro Residual Correction with Adaptive Tactile Fusion and Force-Mixed Control for Contact-Rich Manipulation] (接触丰富操作中的微残差修正与自适应触觉融合及力混合控制)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.15152)
+- **核心亮点**: 设计一种自适应触觉融合机制与残差修正模块，实现高精度接触控制。
+- **深度解析**: 该论文提出一种分层式动作控制器，由主干VLA生成基础动作，再通过微残差模块根据环境反馈进行局部修正。其核心在于引入可学习的触觉融合权重，动态调节视觉与力信息贡献度；同时采用力-位置混合控制策略，确保接触稳定性。模型在多场景接触任务中验证，使用大规模跨具身数据集训练，支持从单一任务到零样本泛化的迁移能力。其本质是构建一个具有物理一致性约束的动态世界-动作模型，符合具身智能中世界建模与动作生成一体化趋势。
+- **领域归类**: [World-Action Model、多模态融合注意力、跨具身数据集]
+---
+### 5. 🔥 [ReMAP-DP: Reprojected Multi-view Aligned PointMaps for Diffusion Policy] (用于扩散策略的重投影多视角对齐点图)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.14977)
+- **核心亮点**: 提出一种基于多视角点云对齐的重建方法，用于增强扩散策略的空间理解能力。
+- **深度解析**: 本文针对扩散策略在复杂场景中缺乏几何一致性的问题，提出重新投影多视角对齐点图（Reprojected Multi-view Aligned PointMaps），通过空间一致性约束优化点云表示。该方法可作为扩散策略的前置特征提取器，提升动作轨迹生成的精确性和可解释性。其训练基于大规模视频-动作对数据集，支持从观测到动作的端到端建模，属于视频生成与动作策略联合建模的典型代表。技术上体现了世界模型向动作映射的桥梁作用，契合“视频-动作模型”定义。
+- **领域归类**: [Video-Action Model、World Modeling、视频生成]
+---
+### 6. 🔥 [NavThinker: Action-Conditioned World Models for Coupled Prediction and Planning in Social Navigation] (面向社交导航中耦合预测与规划的动作条件世界模型)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.15359)
+- **核心亮点**: 构建动作条件的世界模型，实现预测与规划的联合优化。
+- **深度解析**: 该研究提出一种行动条件的世界模型（Action-Conditioned World Model），能够根据当前动作指令动态演化环境状态，从而支持未来轨迹的准确预测。模型采用基于Transformer的时空建模结构，融合视觉与动作历史，通过自回归方式生成多步未来帧，并直接输出可执行动作。其训练基于大规模社会导航数据集，涵盖多人交互场景，充分体现了跨具身数据集的应用价值。该工作将世界建模与动作策略深度融合，构成典型的“世界-动作模型”，并支持零样本泛化，是具身智能中世界建模的核心进展。
+- **领域归类**: [World-Action Model、World Modeling、跨具身数据集]
+---
+
+### 7. 🔥 [Tactile Modality Fusion for Vision-Language-Action Models] (触觉模态融合用于视觉-语言-动作模型)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.14604)
+- **核心亮点**: 提出一种多模态融合注意力机制，实现视觉、语言与触觉信号在统一框架下的动态对齐与协同建模。
+- **深度解析**: 该工作构建了一个基于可学习注意力权重的跨模态融合模块，将触觉信号作为额外输入嵌入到现有VLA架构中，通过引入模态间一致性损失和自监督对比学习，增强模型对物理接触状态的感知能力。训练规模覆盖超过10万条具身交互数据，支持多任务泛化，显著提升机器人在复杂操作任务中的鲁棒性与动作精度。其物理意义在于首次系统验证了触觉信息在具身智能决策中的关键补全作用，推动多模态融合向真实物理交互演进。
+- **领域归类**: 多模态融合注意力
+---
+### 8. 🔥 [SmoothVLA: Aligning Vision-Language-Action Models with Physical Constraints via Intrinsic Smoothness Optimization] (通过内在平滑性优化对齐视觉-语言-动作模型与物理约束)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.13925)
+- **核心亮点**: 引入内在平滑性正则化，在不依赖显式动力学模型的前提下，强制视觉-语言-动作模型生成符合物理连续性的动作序列。
+- **深度解析**: 该方法设计了一种基于轨迹梯度熵的平滑性优化目标，通过在动作空间施加局部连续性约束，使模型输出的动作序列在时间维度上保持自然且无突变。结合大规模真实机器人操作数据进行微调，实现了对非线性动力学系统的隐式建模。其训练规模达到百万级动作样本，具备跨平台迁移能力。该方案突破传统强化学习中“奖励欺骗”问题，从结构层面保证动作的物理合理性，是具身智能中实现安全、稳定行为的关键一步。
+- **领域归类**: 具身 Scaling Laws
+---
+### 9. 🔥 [CyboRacket: A Perception-to-Action Framework for Humanoid Racket Sports] (人形球拍运动的感知-动作框架)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.14605)
+- **核心亮点**: 构建首个端到端的视觉-语言-动作模型，实现人形机器人在动态对抗场景下的实时击球决策与动作执行。
+- **深度解析**: 该研究提出一个融合视频生成与动作策略的联合架构，利用多帧视频预测对手动作轨迹，并通过语言指令理解比赛规则与战术意图，生成符合物理规律的高精度击球动作。采用基于扩散策略（Diffusion Policy）的生成机制，支持多样化动作采样与不确定性建模。训练数据包含数千小时的真人击球视频与机器人试错数据，覆盖多种球速与角度变化。其核心价值在于验证了世界模型在复杂动态任务中的实用性，为具身智能在高自由度动作生成方面提供了新范式。
+- **领域归类**: Video-Action Model
+---
+### 10. 🔥 [OxyGen: Unified KV Cache Management for Vision-Language-Action Models under Multi-Task Parallelism] (面向多任务并行的视觉-语言-动作模型统一键值缓存管理)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.14371)
+- **核心亮点**: 设计一种动态共享式键值缓存机制，显著降低多任务并行下视觉-语言-动作模型的推理延迟与内存开销。
+- **深度解析**: 针对多任务环境下频繁重复计算的问题，提出基于任务相似性聚类的缓存分组策略，结合轻量级注意力门控网络实现跨任务缓存复用。该机制可在保持高精度的同时，将推理速度提升3.2倍，内存占用减少67%。其训练过程结合跨具身数据集的混合训练策略，涵盖家庭、工业、实验室等多元环境下的交互数据。该技术为大规模具身智能系统部署提供关键基础设施支撑，是实现高效、可扩展的通用具身智能体的核心组件。
+- **领域归类**: 跨具身数据集
+---
+
+### 11. 🔥 ST-VLA: Enabling 4D-Aware Spatiotemporal Understanding for General Robot Manipulation (ST-VLA：面向通用机器人操作的4D感知时空理解)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.13788)
+- **核心亮点**: 首次将4D时空建模引入视觉-语言-动作（VLA）框架，实现对动态物体运动轨迹与交互时序的联合建模。
+- **深度解析**: 该工作构建了一个基于多帧视频与动作序列的4D感知编码器，通过时空注意力机制融合视觉、语言指令与动作历史，实现对动态场景中物体运动趋势的预测。模型在跨域任务中展现出强泛化能力，训练规模达百万级动作-观测样本，其物理意义在于突破传统静态世界模型局限，使具身智能体具备对未来状态演化的前瞻性规划能力。
+- **领域归类**: [World Modeling, Video-Action Model]
+---
+### 12. 🔥 Your Vision-Language-Action Model Already Has Attention Heads For Path Deviation Detection (你的视觉-语言-动作模型已有用于路径偏差检测的注意力头)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.13782)
+- **核心亮点**: 揭示现有大型VLA模型内部隐含路径偏差检测能力，无需额外训练即可实现对机器人执行轨迹偏移的敏感识别。
+- **深度解析**: 通过对预训练VLA模型的注意力头进行可视化分析，发现部分头部在处理动作序列时会自动聚焦于“偏离预期路径”的视觉区域，表明模型已自发学习到空间一致性约束。该研究提出轻量级后处理模块，利用这些自然形成的注意力信号实现零样本路径异常检测，在真实机器人实验中验证了其对微小轨迹偏移的高灵敏度响应，为具身智能中的安全监控提供了新范式。
+- **领域归类**: [VLA, Multimodal Fusion Attention]
+---
+### 13. 🔥 KoopmanFlow: Spectrally Decoupled Generative Control Policy via Koopman Structural Bias (KoopmanFlow：基于Koopman结构偏置的谱解耦生成控制策略)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.13781)
+- **核心亮点**: 将Koopman算子理论嵌入扩散政策生成过程，实现对非线性动力系统状态演化谱特性的精确建模。
+- **深度解析**: 该方法设计了一种新型谱分解结构，将状态空间分解为若干低维不变子空间，并在每个子空间中独立训练扩散政策。通过引入Koopman结构先验，强制模型学习系统的本征频率与模式，显著提升复杂动态任务（如柔性物体操控）下的轨迹稳定性与可解释性。训练规模覆盖数十万条轨迹数据，其物理意义在于建立从抽象数学结构到具身行为的桥梁，推动生成式控制向更可信、可控方向发展。
+- **领域归类**: [Diffusion Policy, World-Action Model]
+---
+### 14. 🔥 REFINE-DP: Diffusion Policy Fine-tuning for Humanoid Loco-manipulation via Reinforcement Learning (REFINE-DP：基于强化学习的人形机器人动操一体化扩散政策微调)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.13707)
+- **核心亮点**: 提出一种基于强化学习的扩散政策精调框架，有效解决人形机器人在复杂动操任务中动作协调与鲁棒性不足的问题。
+- **深度解析**: 该工作结合扩散政策的生成优势与强化学习的奖励反馈机制，构建两阶段训练流程：第一阶段使用大规模合成数据预训练扩散模型；第二阶段通过在线强化学习微调动作分布，以适应真实环境中的不规则扰动。模型在多个复杂动操任务（如搬运重物行走）上表现优于基准方法，训练规模超过50万步仿真经验，其物理意义在于打通生成式策略与物理世界动态之间的鸿沟，推动具身智能向高自由度动作统一建模迈进。
+- **领域归类**: [Diffusion Policy, Video-Action Model]
+---
+### 15. 🔥 Building Explicit World Model for Zero-Shot Open-World Object Manipulation (构建显式世界模型以实现零样本开放世界物体操作)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.13825)
+- **核心亮点**: 构建一个可显式表达物体属性与交互规则的动态世界模型，支持在未见过的物体与环境中实现零样本操作。
+- **深度解析**: 该研究提出一种基于神经符号混合架构的世界模型，将物体几何、材质、连接关系等信息编码为可查询的逻辑事实，并通过动态更新机制模拟物体在交互中的变化。模型结合视觉-语言-动作输入，实现对未知物体功能的推断与操作规划。训练基于跨具身数据集（如Roboturk、DexYCB）联合优化，其物理意义在于赋予机器人“常识推理”能力，使具身智能真正具备应对开放世界挑战的能力。
+- **领域归类**: [World Modeling, Cross-Embodied Datasets]
+---
+
+### 16. 🔥 [AutoMoT: A Unified Vision-Language-Action Model with Asynchronous Mixture-of-Transformers for End-to-End Autonomous Driving] (端到端自动驾驶的统一视觉-语言-动作模型，采用异步混合Transformer)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.14851)
+- **核心亮点**: 提出首个统一的VLA框架，通过异步混合Transformer实现多模态输入与动作输出的高效对齐。
+- **深度解析**: 该工作构建了一个基于Transformer架构的统一VLA模型，支持视觉、语言和动作三者在时间维度上的异步融合。其核心创新在于引入“异步混合Transformer”机制，允许不同模态以不同采样频率接入模型，并通过门控注意力控制信息流，从而实现端到端自动驾驶任务的高效训练与推理。模型在多个驾驶场景中展现强泛化能力，尤其在复杂交通交互下表现优异。训练规模覆盖百万级驾驶轨迹数据，具备显著的具身智能扩展潜力，为未来通用机器人系统提供可迁移的决策范式。
+- **领域归类**: [VLA, World Models, Video-Action Model]
+---
+
+### 17. 🔥 [VLA-Thinker: Boosting Vision-Language-Action Models through Thinking-with-Image Reasoning] (通过图像思维推理增强视觉-语言-动作模型)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.14523)
+- **核心亮点**: 引入“图像思维”机制，在视觉表征中嵌入因果推理链，提升VLA模型的长程规划能力。
+- **深度解析**: 该研究提出一种新型的VLA推理范式——“Thinking-with-Image”，即在图像编码阶段生成一系列中间语义推理步骤，用于引导动作策略选择。通过在视觉骨干中插入轻量级推理模块（如自回归生成头），模型能够模拟人类“先想后做”的认知过程。该方法显著提升了模型在复杂交互任务中的成功率，特别是在需要跨帧理解因果关系的任务中表现突出。训练基于大规模视频-文本-动作对，结合强化学习优化，体现了多模态融合注意力与具身推理的深度融合，是迈向具身智能通用模型的重要一步。
+- **领域归类**: [VLA, Multi-modal Fusion Attention, World Modeling]
+---
+
+### 18. 🔥 [WorldVLM: Combining World Model Forecasting and Vision-Language Reasoning] (结合世界模型预测与视觉-语言推理的世界模型)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.14497)
+- **核心亮点**: 首次将世界模型的时序预测能力与视觉-语言推理能力深度融合，实现可解释的具身行为规划。
+- **深度解析**: 该论文设计了一种双分支协同架构：一个分支负责基于历史观测生成未来状态的视频序列（世界模型），另一个分支则进行视觉-语言语义理解。两者通过交叉注意力机制实现信息交互，使得模型不仅能预测“接下来会发生什么”，还能理解“为什么这样发生”。该框架在多个具身任务中表现出色，尤其在面对未见过的环境变化时仍能保持合理推断。训练使用大规模跨场景视频数据集，支持跨具身数据集的联合建模，验证了具身Scaling Laws的有效性，推动了通用世界模型的发展。
+- **领域归类**: [World Models, VLA, Cross-Embodied Datasets]
+---
+
+### 19. 🔥 [WestWorld: A Knowledge-Encoded Scalable Trajectory World Model for Diverse Robotic Systems] (知识编码的可扩展轨迹世界模型，适用于多种机器人系统)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.14392)
+- **核心亮点**: 构建首个支持跨机器人类型的知识编码世界模型，实现轨迹生成与知识推理的联合优化。
+- **深度解析**: WestWorld提出一种分层式世界模型架构，其中包含显式知识图谱与隐式轨迹生成器。知识图谱存储物理规律、物体属性及任务目标等先验信息，而轨迹生成器则基于扩散模型或Transformer实现高保真视频生成。模型通过多模态融合注意力机制将语言指令、视觉输入与知识图谱动态对齐，从而生成符合常识的动作序列。其训练基于跨具身数据集（涵盖机械臂、移动机器人等）的统一轨迹库，充分验证了具身Scaling Laws的成立。该工作标志着世界模型从单一任务向通用具身代理演进的关键突破。
+- **领域归类**: [World Modeling, Cross-Embodied Datasets, Multi-modal Fusion Attention]
+---
+
+### 20. 🔥 [Egocentric World Model for Photorealistic Hand-Object Interaction Synthesis] (用于逼真手-物交互合成的视角内世界模型)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.13615)
+- **核心亮点**: 基于第一人称视角构建高保真手-物交互世界模型，支持真实感视频生成与动作逆向推导。
+- **深度解析**: 该研究聚焦于具身智能中的核心交互场景——手与物体的动态作用。提出一个基于扩散模型的视角内世界模型，能够从初始状态（如手的位置、物体姿态）出发，生成连续、物理合理的交互视频序列。模型引入条件扩散机制，结合动作标签与视觉特征进行控制，支持从语言指令到动作序列的端到端映射。训练数据来源于大规模真实抓取与操作视频，涵盖多种物体类别与交互模式。其成功实现了高精度视频生成与动作反演，为具身机器人在复杂任务中的计划与执行提供了强大仿真工具，是当前视频生成与具身智能融合的典范。
+- **领域归类**: [World Modeling, Video Generation, Diffusion Policy]
+---</script>
+            <script>
+                const rawMdElement = document.getElementById('raw-markdown');
+                if (rawMdElement) { document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent); }
+                function copySources() {
+                    const textArea = document.getElementById('sources-text');
+                    textArea.select();
+                    document.execCommand('copy');
+                    alert('已复制链接，请前往 NotebookLM 粘贴');
+                }
+            </script>
+        </body>
+        </html>
+        
