@@ -13,7 +13,7 @@
                 @media (max-width: 767px) { .markdown-body { padding: 15px; } }
                 .sources-box { margin-top: 50px; padding: 20px; background: #f6f8fa; border: 1px dashed #d0d7de; border-radius: 10px; }
                 .sources-box textarea { width: 100%; height: 100px; margin: 10px 0; padding: 10px; font-family: monospace; font-size: 12px; border: 1px solid #d0d7de; border-radius: 6px; resize: none; }
-                .copy-btn { background-color: #2da44e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+                .copy-btn { background-color: #2da44e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }
             </style>
         </head>
         <body class="markdown-body">
@@ -29,12 +29,14 @@
 </script>
             <script>
                 const rawMdElement = document.getElementById('raw-markdown');
-                if (rawMdElement) { document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent); }
+                if (rawMdElement) {
+                    document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent);
+                }
                 function copySources() {
                     const textArea = document.getElementById('sources-text');
                     textArea.select();
                     document.execCommand('copy');
-                    alert('已复制链接，请前往 NotebookLM 粘贴');
+                    alert('已复制所有链接，请前往 NotebookLM 粘贴');
                 }
             </script>
         </body>
