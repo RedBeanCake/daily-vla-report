@@ -108,23 +108,22 @@ def process_with_ai(papers, date_text):
     return "\n\n---\n\n".join(final_res)
 
 def generate_archive_and_index(date_text, content):
-    """生成详情页，并在底部增加 NotebookLM Sources 集合区"""
+    """生成详情页（含 Sources 区）并更新索引页"""
     count = content.count("###")
     safe_date = re.sub(r'[^\w\s-]', '', date_text).replace(' ', '_')
     
     os.makedirs('archive', exist_ok=True)
     daily_file_path = f"archive/{safe_date}.html"
 
-    # --- 新增：从 AI 生成的内容中提取所有 Arxiv ID ---
-    # 匹配格式如：https://arxiv.org/abs/2603.13616
+    # --- 1. 提取 Arxiv ID 并构建链接列表 ---
     paper_ids = re.findall(r'abs/(\d+\.\d+)', content)
-    # 按照你的要求构建 NotebookLM 友好的 HTML 链接列表
-    # 默认使用 /html/ 路径，这是目前 LLM 读取效率最高的格式
     sources_list = [f"https://arxiv.org/html/{pid}" for pid in paper_ids]
     sources_text = "\n".join(sources_list)
 
-    def get_html_template(title, body_content, is_index=False, sources_block=""):
-        back_link = "<a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>" if not is_index else ""
+    # --- 2. 定义 HTML 模板生成器 ---
+    def get_html_template(title, body_content, is_index_page=False, sources_block=""):
+        # 索引页不需要返回链接
+        back_link = "<a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>" if not is_index_page else ""
         safe_body = body_content.replace('</script>', '<\\/script>')
         
         return f"""
@@ -140,20 +139,17 @@ def generate_archive_and_index(date_text, content):
                 html, body {{ -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }}
                 .markdown-body {{ box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }}
                 @media (max-width: 767px) {{ .markdown-body {{ padding: 15px; }} }}
-                /* Sources 区域样式 */
                 .sources-box {{ margin-top: 50px; padding: 20px; background: #f6f8fa; border: 1px dashed #d0d7de; border-radius: 10px; }}
-                .sources-box h3 {{ margin-top: 0; font-size: 16px; color: #24292f; }}
                 .sources-box textarea {{ width: 100%; height: 100px; margin: 10px 0; padding: 10px; font-family: monospace; font-size: 12px; border: 1px solid #d0d7de; border-radius: 6px; resize: none; }}
                 .copy-btn {{ background-color: #2da44e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }}
-                .copy-btn:hover {{ background-color: #2c974b; }}
             </style>
         </head>
         <body class="markdown-body">
             {back_link}
             <h1>{title}</h1>
             <div id="content"></div>
-            
-            {sources_block} <script type="text/markdown" id="raw-markdown">{safe_body}</script>
+            {sources_block}
+            <script type="text/markdown" id="raw-markdown">{safe_body}</script>
             <script>
                 const rawMdElement = document.getElementById('raw-markdown');
                 if (rawMdElement) {{
@@ -163,33 +159,29 @@ def generate_archive_and_index(date_text, content):
                     const textArea = document.getElementById('sources-text');
                     textArea.select();
                     document.execCommand('copy');
-                    const btn = document.querySelector('.copy-btn');
-                    const originalText = btn.innerText;
-                    btn.innerText = '✅ 已复制链接';
-                    setTimeout(() => {{ btn.innerText = originalText; }}, 2000);
+                    alert('已复制所有链接，请前往 NotebookLM 粘贴');
                 }}
             </script>
         </body>
         </html>
         """
 
-    # 构建 Sources 区域的 HTML 代码
+    # --- 3. 构建 Sources 区域的 HTML（仅用于详情页） ---
     sources_html = ""
-    if not is_index and sources_list:
+    if sources_list:
         sources_html = f"""
         <div class="sources-box">
-            <h3>🔗 NotebookLM Sources 集合区 (一键复制投喂)</h3>
-            <p style="font-size: 12px; color: #57606a;">提示：NotebookLM 建议优先使用 /html/ 格式，若该篇不支持会自动跳转 PDF。</p>
+            <h3>🔗 NotebookLM Sources 集合区</h3>
             <textarea id="sources-text" readonly>{sources_text}</textarea>
             <button class="copy-btn" onclick="copySources()">📋 复制所有 {len(sources_list)} 个来源链接</button>
         </div>
         """
 
-    # 1. 保存每日详情页
+    # --- 4. 写入每日详情页 ---
     with open(daily_file_path, "w", encoding="utf-8") as f:
-        f.write(get_html_template(f"🤖 具身大模型简报 - {date_text}", content, sources_block=sources_html))
+        f.write(get_html_template(f"🤖 具身大模型简报 - {date_text}", content, is_index_page=False, sources_block=sources_html))
 
-    # 2. 生成 index.html
+    # --- 5. 写入索引页 (index.html) ---
     history_files = sorted([f for f in os.listdir('archive') if f.endswith('.html')], reverse=True)
     index_md = "### 📅 历史存档列表\n\n"
     for f_name in history_files:
@@ -197,17 +189,17 @@ def generate_archive_and_index(date_text, content):
         index_md += f"- [{display_date}](archive/{f_name})\n"
     
     with open("index.html", "w", encoding="utf-8") as f:
-        f.write(get_html_template("📚 具身大模型科研日报 - 历史索引", index_md, is_index=True))
+        f.write(get_html_template("📚 具身大模型科研日报 - 历史索引", index_md, is_index_page=True))
 
-    # 3. 推送飞书卡片 (逻辑保持不变)
+    # --- 6. 推送飞书卡片 ---
     payload = {
         "msg_type": "interactive",
         "card": {
             "header": {"title": {"tag": "plain_text", "content": f"🌟 具身大模型精选 | {date_text}"}, "template": "blue"},
             "elements": [
-                {"tag": "div", "text": {"tag": "lark_md", "content": f"今日已精选 **{count}** 篇 VLA 相关论文。详情已归档至历史索引页。"}},
+                {"tag": "div", "text": {"tag": "lark_md", "content": f"今日已精选 **{count}** 篇 VLA 相关论文。"}},
                 {"tag": "action", "actions": [
-                    {"tag": "button", "text": {"tag": "plain_text", "content": "🌐 进入历史索引查阅"}, "type": "primary", "url": GITHUB_PAGES_URL}
+                    {"tag": "button", "text": {"tag": "plain_text", "content": "🌐 进入网页查看 & 复制 Notebook 链接"}, "type": "primary", "url": GITHUB_PAGES_URL}
                 ]}
             ]
         }
