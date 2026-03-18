@@ -34,15 +34,18 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.event.repository.name }}
         run: python main.py
 
-      - name: Commit & Push changes
+      - name: Commit and push changes
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          # 确保 archive 目录存在，防止 git add 报错
-          mkdir -p archive
-          git add index.html archive/*.html
-          # 只有在有变化时才提交，防止空提交报错
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update: $(date +'%Y-%m-%d')" && git push origin main)
+          git add .
+          # 只有在有变动时才提交，防止报错
+          git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update: $(date +'%Y-%m-%d')"
+          
+          # 关键点：先拉取远程的最新改动（比如你手动删除的操作），再把机器人的改动接在后面
+          git pull --rebase origin main
+          
+          git push origin main
 
       - name: Deploy to Pages
         uses: peaceiris/actions-gh-pages@v3
