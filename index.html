@@ -13,7 +13,7 @@
                 @media (max-width: 767px) { .markdown-body { padding: 15px; } }
                 .sources-box { margin-top: 50px; padding: 20px; background: #f6f8fa; border: 1px dashed #d0d7de; border-radius: 10px; }
                 .sources-box textarea { width: 100%; height: 100px; margin: 10px 0; padding: 10px; font-family: monospace; font-size: 12px; border: 1px solid #d0d7de; border-radius: 6px; resize: none; }
-                .copy-btn { background-color: #2da44e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }
+                .copy-btn { background-color: #2da44e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
             </style>
         </head>
         <body class="markdown-body">
@@ -24,18 +24,17 @@
             <script type="text/markdown" id="raw-markdown">### 📅 历史存档列表
 
 - [Wed 18 Mar 2026 showing 69 of 69 entries ](archive/Wed_18_Mar_2026_showing_69_of_69_entries_.html)
+- [Wed 18 Mar 2026](archive/Wed_18_Mar_2026.html)
 - [Tue 17 Mar 2026 showing 147 of 147 entries ](archive/Tue_17_Mar_2026_showing_147_of_147_entries_.html)
 </script>
             <script>
                 const rawMdElement = document.getElementById('raw-markdown');
-                if (rawMdElement) {
-                    document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent);
-                }
+                if (rawMdElement) { document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent); }
                 function copySources() {
                     const textArea = document.getElementById('sources-text');
                     textArea.select();
                     document.execCommand('copy');
-                    alert('已复制所有链接，请前往 NotebookLM 粘贴');
+                    alert('已复制链接，请前往 NotebookLM 粘贴');
                 }
             </script>
         </body>
