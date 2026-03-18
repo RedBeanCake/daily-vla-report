@@ -31,10 +31,10 @@ def scrape_arxiv(category):
         dls = soup.find_all('dl', id='articles')
         if not dls: return None, []
         
-        target_date = soup.find('h3').text.strip()
+        target_date = soup.find('h3')[1].text.strip()
         papers = []
-        dt_tags = dls[0].find_all('dt')
-        dd_tags = dls[0].find_all('dd')
+        dt_tags = dls[1].find_all('dt')
+        dd_tags = dls[1].find_all('dd')
         
         for dt, dd in zip(dt_tags, dd_tags):
             link_tag = dt.find('a', title='Abstract')
