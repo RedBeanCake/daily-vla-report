@@ -52,15 +52,13 @@ def scrape_arxiv(category):
     except Exception: return None, []
 
 def process_with_ai(papers, date_text):
-    """调用大模型进行结构化筛选与提炼"""
+    """采用最新的过滤规则，由 AI 评分，Python 全局排序并控制 🔥 标志"""
     if not papers: return ""
-    global_id_counter = 1
-    final_res = []
+    all_filtered_papers = []
     
-    # 分块处理 (40篇一组)
     for i in range(0, len(papers), 40):
         chunk = papers[i:i+40]
-        prompt = f"""你是一个专注于【大模型具身智能】的顶级研究员。请从以下论文中筛选并编号。
+        prompt = f"""你是一个专注于【大模型具身智能】的顶级研究员。请从以下论文中筛选并打分。
 
         ✅ 必须保留：
         1. VLA (Vision-Language-Action)、World Models (世界模型)、World Modeling、视频生成。
@@ -74,21 +72,22 @@ def process_with_ai(papers, date_text):
         4. 经典视觉：单纯的人体姿态识别、纯 3D 重建(NeRF/GS/三维几何)、单纯触觉。
         5. 多智能体协同/集群 (Swarm)、离散任务调度。
 
-        ⚠️ 输出极其严格限制：
-        1. **禁止**输出任何开场白和总结。
-        2. **仅输出**符合以下格式的论文列表。
-        3. **重要**：每篇论文结束后必须紧跟一个 --- 作为分割线。
-
         要求：
-        1. 请从编号 {global_id_counter} 开始为筛选出的论文连续编号。
-        2. 格式（Markdown）：
-           ### {global_id_counter}. 🔥 [英文题目] (中文题目翻译)
-           - **论文链接**: [点击跳转](https://arxiv.org/abs/{{id}})
-           - **核心亮点**: (一句话说明该文最核心的创新点)。
-           - **深度解析**: (一段话详细描述技术方案、训练数据规模、实验结论及物理意义)。
-           - **领域归类**: [归类版块]
+        1. 为每篇论文打分（score，0-100），分数代表与【具身大模型/世界模型/VLA】核心方向的相关性。
+        2. 严格按以下 JSON 格式输出，不要有任何开场白或总结文字：
+        [
+          {{
+            "id": "论文ID",
+            "title": "英文原题",
+            "trans_title": "中文翻译",
+            "score": 匹配分数(数字),
+            "highlight": "一句话核心亮点",
+            "analysis": "一段话技术方案、训练规模及物理意义深度解析",
+            "category": "领域归类"
+          }}
+        ]
 
-        待处理数据内容：
+        待处理数据：
         {json.dumps(chunk)}
         """
         
@@ -97,14 +96,36 @@ def process_with_ai(papers, date_text):
                 model="qwen-flash", 
                 messages=[{"role": "user", "content": prompt}]
             )
-            res = completion.choices[0].message.content
-            if "###" in res:
-                final_res.append(res)
-                global_id_counter += res.count("###")
+            # 清理代码块标记
+            raw = completion.choices[0].message.content.strip().replace('```json', '').replace('```', '')
+            res_list = json.loads(raw)
+            if isinstance(res_list, list):
+                all_filtered_papers.extend(res_list)
         except Exception as e:
-            print(f"AI Error: {e}")
-            
-    return "\n\n---\n\n".join(final_res)
+            print(f"AI Processing Error: {e}")
+
+    # --- 核心逻辑：排序与渲染 ---
+    if not all_filtered_papers: return ""
+
+    # 1. 按分数从高到低排序
+    all_filtered_papers.sort(key=lambda x: x.get('score', 0), reverse=True)
+
+    # 2. 渲染 Markdown
+    markdown_segments = []
+    for idx, p in enumerate(all_filtered_papers, 1):
+        # 只有匹配度 >= 90 的超级重磅论文才加 🔥
+        fire = "🔥 " if p.get('score', 0) >= 90 else ""
+        
+        seg = f"""### {idx}. {fire}[{p['title']}] ({p['trans_title']})
+- **论文链接**: [点击跳转](https://arxiv.org/abs/{p['id']})
+- **匹配热度**: `{p['score']}`
+- **核心亮点**: {p['highlight']}
+- **深度解析**: {p['analysis']}
+- **领域归类**: [{p['category']}]
+---"""
+        markdown_segments.append(seg)
+        
+    return "\n\n".join(markdown_segments)
 
 def generate_archive_and_index(date_text, content):
     """生成详情页（含 Sources 区）并更新索引页"""
