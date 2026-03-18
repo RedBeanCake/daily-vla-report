@@ -2,7 +2,7 @@ name: Daily VLA Report
 
 on:
   schedule:
-    - cron: '0 6 * * *' # 每天北京时间 14:00 自动跑
+    - cron: '0 6 * * 1-5' # 每天北京时间 14:00 自动跑
   workflow_dispatch: # 允许你点击按钮手动运行一次
 
 permissions:
