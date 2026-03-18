@@ -102,14 +102,13 @@ def process_with_ai(papers, date_text):
     return "\n\n---\n\n".join(final_res)
 
 def generate_archive_and_index(date_text, content):
-    """生成每日 HTML 详情页并动态更新主索引页"""
+    """生成每日 HTML 详情页并动态更新主索引页 (优化 Safari 渲染)"""
     count = content.count("###")
     safe_date = re.sub(r'[^\w\s-]', '', date_text).replace(' ', '_')
     
     os.makedirs('archive', exist_ok=True)
     daily_file_path = f"archive/{safe_date}.html"
 
-    # HTML 渲染模板函数
     def get_html_template(title, body_content, is_index=False):
         back_link = "<a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>" if not is_index else ""
         return f"""
@@ -122,8 +121,27 @@ def generate_archive_and_index(date_text, content):
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
             <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
             <style>
-                .markdown-body {{ box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; }}
-                @media (max-width: 767px) {{ .markdown-body {{ padding: 15px; }} }}
+                /* 针对 Safari 的字体优化 */
+                :root {{
+                    color-scheme: light; /* 强制明亮模式，防止 Safari 自动反色导致样式错乱 */
+                }}
+                .markdown-body {{
+                    box-sizing: border-box;
+                    min-width: 200px;
+                    max-width: 980px;
+                    margin: 0 auto;
+                    padding: 45px;
+                    /* 修复 Safari 字体显示的核心代码 */
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+                    -webkit-font-smoothing: antialiased; /* 开启平滑锯齿 */
+                    text-rendering: optimizeLegibility;
+                }}
+                @media (max-width: 767px) {{
+                    .markdown-body {{ padding: 15px; }}
+                }}
+                /* 针对 Safari 的链接颜色微调 */
+                .markdown-body a {{ color: #0969da; text-decoration: none; }}
+                .markdown-body a:hover {{ text-decoration: underline; }}
             </style>
         </head>
         <body class="markdown-body">
