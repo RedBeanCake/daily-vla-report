@@ -175,7 +175,7 @@ if __name__ == "__main__":
     
     final_list = list(all_p.values())
     content = process_with_ai(final_list, actual_date)
-    if content: generate_archive_and_index(actual_date, content)        """
+    if content: generate_archive_and_index(actual_date, content)
         
         completion = client_llm.chat.completions.create(model="qwen-flash", messages=[{"role": "user", "content": prompt + str(chunk)}])
         res = completion.choices[0].message.content
@@ -184,66 +184,3 @@ if __name__ == "__main__":
             global_id += res.count("###")
             
     return "\n\n---\n\n".join(final_res)
-
-def generate_web_and_push(date_text, content):
-    """构建 HTML 存档并推送飞书卡片"""
-    count = content.count("###")
-    
-    # 构建 HTML 模板，采用 GitHub-Markdown 样式标准
-    html_template = f"""
-    <!DOCTYPE html>
-    <html lang="zh-CN">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Embodied AI Report - {date_text}</title>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
-        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-        <style>
-            .markdown-body {{ box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; }}
-            @media (max-width: 767px) {{ .markdown-body {{ padding: 15px; }} }}
-            .header-info {{ margin-bottom: 20px; color: #57606a; }}
-        </style>
-    </head>
-    <body class="markdown-body">
-        <h1>🤖 具身大模型简报 - {date_text}</h1>
-        <div class="header-info">精选内容由 Qwen-flash 自动提炼 | 本日共有 <strong>{count}</strong> 篇核心论文</div>
-        <hr>
-        <div id="content"></div>
-        <script>
-            const rawMd = {json.dumps(content)};
-            document.getElementById('content').innerHTML = marked.parse(rawMd);
-        </script>
-    </body>
-    </html>
-    """
-    
-    with open("index.html", "w", encoding="utf-8") as f:
-        f.write(html_template)
-    
-    # 构建飞书交互式卡片
-    payload = {
-        "msg_type": "interactive",
-        "card": {
-            "header": {{"title": {{"tag": "plain_text", "content": f"🌟 具身大模型精选 | {date_text}"}}, "template": "blue"}},
-            "elements": [
-                {{"tag": "div", "text": {{"tag": "lark_md", "content": f"今日已精选 **{count}** 篇 VLA 相关论文。详细提炼已更新至网页版存档。"}}}},
-                {{"tag": "action", "actions": [
-                    {{"tag": "button", "text": {{"tag": "plain_text", "content": "🌐 在线查阅网页版"}}, "type": "primary", "url": GITHUB_PAGES_URL}}
-                ]}}
-            ]
-        }
-    }
-    requests.post(FEISHU_WEBHOOK, json=payload)
-
-if __name__ == "__main__":
-    all_p = {}
-    actual_date = ""
-    for cat in CATEGORIES:
-        d, ps = scrape_arxiv(cat)
-        if d: actual_date = d
-        for p in ps: all_p[p['id']] = p
-    
-    final_list = list(all_p.values())
-    content = process_with_ai(final_list, actual_date)
-    if content: generate_web_and_push(actual_date, content)
