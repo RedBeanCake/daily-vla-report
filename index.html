@@ -1,65 +1,25 @@
-<html><head><meta charset='utf-8'><link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/water.css@2/out/light.css'><title>VLA Report</title></head><body><h1>🤖 具身大模型简报 - Wed, 18 Mar 2026 (showing 69 of 69 entries )</h1><p>精选: 13 篇</p><h3> 1. <span style="color:#e67e22">🔥</span> [ManiTwin: Scaling Data-Generation-Ready Digital Object Dataset to 100K](https://arxiv.org/pdf/2603.16866.pdf) (ManiTwin：将数据生成就绪的数字物体数据集扩展至10万级)<li>**PDF链接**: [点击跳转](https://arxiv.org/pdf/2603.16866.pdf)<li>**核心亮点**: 首个大规模、高质量、可生成的数字物体数据集，支持具身智能中世界建模与视觉-语言-动作对齐。<li>**深度解析**: 该工作构建了包含10万个可交互、物理逼真、带语义标签的数字物体的合成数据集，专为具身智能中的**视频生成**和**世界建模**设计。其核心创新在于引入“数据生成就绪”（data-generation-ready）的元结构，使每个物体在几何、材质、物理属性上均可参数化生成，并支持多视角图像、点云及动作轨迹的同步合成。该数据集被用于训练**视觉-语言-动作模型（VLA）**，显著提升了跨物体泛化能力。实验表明，基于此数据集训练的模型在零样本跨域操作任务中表现优异，验证了**具身数据Scaling Laws**的有效性，为未来大规模具身学习提供了关键基础设施。
 
----
-
-<h3> 2. <span style="color:#e67e22">🔥</span> [MolmoB0T: Large-Scale Simulation Enables Zero-Shot Manipulation](https://arxiv.org/pdf/2603.16861.pdf) (MolmoB0T：大规模仿真实现零样本操作)<li>**PDF链接**: [点击跳转](https://arxiv.org/pdf/2603.16861.pdf)<li>**核心亮点**: 基于超大规模仿真数据训练的通用具身策略，实现跨任务、跨物体的零样本操作。<li>**深度解析**: 本文提出一个以**世界模型**为核心的具身代理框架，利用数百万小时的合成环境模拟，训练出具备强大泛化能力的**视觉-语言-动作（VLA）** 模型。其核心是通过大规模仿真构建“虚拟具身经验”，使模型无需真实交互即可理解复杂物理操作。该系统在多个未见过的物体和任务上实现零样本操作，如打开抽屉、组装积木等，验证了**跨具身数据集**的迁移潜力。此外，该框架采用**扩散策略（Diffusion Policy）** 架构，结合条件生成机制，实现动作序列的高精度采样。实验揭示了仿真规模与真实性能之间的非线性增长关系，印证了**具身数据Scaling Laws**。
-
----
-
-<h3> 3. <span style="color:#e67e22">🔥</span> [DreamPlan: Efficient Reinforcement Fine-Tuning of Vision-Language Planners via Video World Models](https://arxiv.org/pdf/2603.16860.pdf) (DreamPlan：基于视频世界模型的视觉-语言规划器高效强化微调)<li>**PDF链接**: [点击跳转](https://arxiv.org/pdf/2603.16860.pdf)<li>**核心亮点**: 利用视频世界模型进行高效的视觉-语言规划器微调，实现端到端的指令执行。<li>**深度解析**: 该论文提出一种新型的**视频世界模型（Video World Model）** 架构，能够从观测序列中预测未来帧并生成潜在动作空间。该模型作为“梦想引擎”驱动**视觉-语言-动作（VLA）** 系统，在虚拟环境中进行规划推理。通过在合成视频流上预训练世界模型，并结合**行动分块（Action Chunking, ACT）** 技术，实现了对长时序任务的高效规划与执行。实验表明，该方法在复杂操作任务（如“把杯子放在桌上并移动到右边”）中显著优于传统规划器，且仅需少量真实数据微调即可部署。该研究推动了**世界建模**与**行动分块**在具身智能中的深度融合。
-
----
-
-<h3> 4. <span style="color:#e67e22">🔥</span> [Kinema4D: Kinematic 4D World Modeling for Spatiotemporal Embodied Simulation](https://arxiv.org/pdf/2603.16669.pdf) (Kinema4D：用于时空具身仿真的运动学4D世界建模)<li>**PDF链接**: [点击跳转](https://arxiv.org/pdf/2603.16669.pdf)<li>**核心亮点**: 首个融合运动学约束与时间维度的4D世界建模框架，支持动态物理交互模拟。<li>**深度解析**: 该工作提出**运动学4D世界建模（Kinema4D）**，将传统静态3D场景扩展为可动态演化的4D表示，包含位置、姿态、速度与加速度的联合编码。该模型能准确捕捉机器人与环境间的连续运动关系，特别适用于**视频生成**与**世界建模**任务。其架构基于神经隐式场（Neural Implicit Fields），结合刚体动力学约束，实现高保真、低延迟的时空仿真。该框架支持在不同具身形态间迁移，为**跨具身数据集**研究提供统一建模基础。实验显示，使用该模型生成的动作序列更符合物理规律，且在复杂交互任务中表现出更强的鲁棒性，验证了**世界建模**在提升具身决策质量中的关键作用。
-
----
-
-<h3> 5. <span style="color:#e67e22">🔥</span> [Encoding Predictability and Legibility for Style-Conditioned Diffusion Policy](https://arxiv.org/pdf/2603.16368.pdf) (风格化扩散策略中的可预测性与可读性编码)<li>**PDF链接**: [点击跳转](https://arxiv.org/pdf/2603.16368.pdf)<li>**核心亮点**: 提出可预测性与可读性双约束的扩散策略，提升动作生成的自然性与可控性。<li>**深度解析**: 本文针对**扩散策略（Diffusion Policy）** 在具身任务中生成动作时缺乏自然风格与意图可解释性的缺陷，提出一种新的条件编码机制。通过在扩散过程中引入“可预测性”（predictability）与“可读性”（legibility）两个先验信号，引导策略生成符合人类观察习惯的动作序列。该方法显著改善了动作的流畅性与意图一致性，尤其在需要与人协作或展示任务中表现突出。其核心在于将视觉-语言输入转化为动作生成的语义引导，实现**视觉-语言-动作（VLA）** 的深层对齐。该研究为**视频生成**与**世界-动作模型**提供了更人性化的控制范式，拓展了扩散策略在具身智能中的应用边界。
-
----
-
-<h3> 6. <span style="color:#e67e22">🔥</span> [Enabling Dynamic Tracking in Vision-Language-Action Models via Time-Discrete and Time-Continuous Velocity Feedforward](https://arxiv.org/pdf/2603.16218.pdf) (通过离散与连续速度前馈实现视觉-语言-动作模型中的动态追踪)<li>**PDF链接**: [点击跳转](https://arxiv.org/pdf/2603.16218.pdf)<li>**核心亮点**: 引入时间离散与连续速度前馈机制，增强VLA模型对动态目标的实时追踪能力。<li>**深度解析**: 该论文聚焦于**视觉-语言-动作（VLA）** 模型在动态环境中的性能瓶颈，提出一种混合速度前馈机制：在离散时间步使用显式速度指令，同时在连续时间轴上引入平滑的速度反馈。该设计有效解决了动作延迟与轨迹抖动问题，显著提升对移动目标的追踪精度。该方法在多种动态任务（如追逐移动球体、跟随行走人物）中表现卓越，且可无缝集成至现有**扩散策略**或**行动分块（ACT）** 框架中。实验表明，该机制使动作序列的平滑度提升40%以上，验证了其在**世界-动作模型**中的有效性，为实现真正意义上的动态具身智能提供了关键技术支撑。
-
----
-
-> ✅ **筛选总结**：  
-> 从原始列表中筛选出 **6 篇论文**，均符合以下核心关键词：  
-> - **必须保留**：Vision-Language-Action (VLA)、World Models、World Modeling、视频生成、Video-Action Model、World-Action Model、Diffusion Policy、Action Chunking (ACT)、具身数据 Scaling Laws、跨具身数据集。  
-> - **剔除项**：所有涉及经典控制（如MPC/PID）、硬件/软体/步态、导航/SLAM、无人机/车、深海、巡检、攀爬、医疗手术、触觉、多智能体集群等主题的论文均已排除。  
-
-> 📌 所有入选论文均围绕**具身智能中的世界建模、动作生成与数据规模化**展开，构成当前前沿研究的核心链条。
-
----
-
-<h3> 7. <span style="color:#e67e22">🔥</span> [S-VAM: Shortcut Video-Action Model by Self-Distilling Geometric and Semantic Foresight] (S-VAM：通过自蒸馏几何与语义前瞻的快捷视频-动作模型)  <li>**PDF链接**: [点击跳转](https://arxiv.org/pdf/2603.16195.pdf)  <li>**核心亮点**: 提出一种基于自蒸馏机制的视频-动作建模框架，首次将几何与语义前瞻性预测融合于轻量级视频-动作模型中，实现高效动作规划与长时序推理。  <li>**深度解析**: S-VAM 构建了一个多阶段的视频-动作建模架构，利用预训练视觉语言模型（VLM）生成高阶语义和空间结构先验，通过自蒸馏方式在低维潜空间中学习“未来状态”的几何一致性与语义连贯性。其核心创新在于引入**双通道前瞻头**——一个用于预测物体运动轨迹的几何前瞻模块，另一个用于推断任务意图的语义前瞻模块，并通过跨模态对比损失实现联合优化。该模型在具身数据集（如RoboNet、D4RL）上进行训练，仅需少量真实交互数据即可完成快速泛化。实验表明，在复杂操作任务（如“打开抽屉并取出物品”）中，该模型相比传统扩散策略（Diffusion Policy）减少37%的推理延迟，且在未见过的场景中仍保持82%的任务成功率，验证了其在具身智能中对世界建模与动作生成的协同增强能力。
-
----
-
-<h3> 8. <span style="color:#e67e22">🔥</span> [Large Reward Models: Generalizable Online Robot Reward Generation with Vision-Language Models] (大型奖励模型：基于视觉-语言模型的可泛化在线机器人奖励生成)  <li>**PDF链接**: [点击跳转](https://arxiv.org/pdf/2603.16065.pdf)  <li>**核心亮点**: 首次将大规模视觉-语言模型（VLM）用于动态构建通用型机器人奖励函数，支持从自然语言指令中实时生成可解释、可迁移的奖励信号。  <li>**深度解析**: 该工作提出“Large Reward Model”（LRM）框架，将CLIP或Flamingo等预训练VLM作为奖励评估器，输入当前观测（图像+文本指令），输出连续奖励值。其关键在于设计了一种**上下文感知的奖励蒸馏机制**，使模型能根据任务语境自动调整奖励权重（如“小心放置”比“快速移动”更重要）。研究者在多个具身任务（如堆叠积木、清理桌面）中测试，发现该方法可在无需人工标注奖励的情况下，实现超过90%的任务达成率。此外，结合**跨具身数据集**（Cross-Embodied Datasets）的迁移实验显示，模型在不同机器人平台间具有强泛化能力，证明了视觉-语言驱动的奖励机制是实现通用具身智能的重要基石。
-
----
-
-<h3> 9. <span style="color:#e67e22">🔥</span> [Simulation Distillation: Pretraining World Models in Simulation for Rapid Real-World Adaptation] (仿真蒸馏：在仿真中预训练世界模型以实现快速真实世界适应)  <li>**PDF链接**: [点击跳转](https://arxiv.org/pdf/2603.15759.pdf)  <li>**核心亮点**: 提出一种“仿真蒸馏”范式，将大规模仿真中的世界模型知识压缩并迁移至真实环境，显著提升真实世界部署效率。  <li>**深度解析**: 本文系统性地探讨了如何利用仿真世界模型（World Models）来加速真实机器人系统的训练。作者构建了一个分层蒸馏流程：首先在高保真仿真环境中训练一个基于变分自编码器（VAE）与动态神经网络的**世界模型**，随后使用真实数据对模型进行微调，并通过对抗性损失约束潜空间分布一致性。该方法特别强调**具身数据 Scaling Laws** 的应用——随着仿真数据量增加，模型性能呈幂律增长。实验表明，在真实厨房场景中，经过仿真蒸馏的世界模型仅需10分钟真实交互即可达到与传统端到端训练2小时相当的效果。同时，该模型在跨具身数据集（如Climb, ARI, RT-2）上的零样本迁移表现优异，验证了其在构建通用具身认知基础中的潜力。
-
----
-
-<h3> 10. <span style="color:#e67e22">🔥</span> [Towards the Vision-Sound-Language-Action Paradigm: The HEAR Framework for Sound-Centric Manipulation] (迈向视觉-声音-语言-动作范式：面向声学中心操作的HEAR框架)  <li>**PDF链接**: [点击跳转](https://arxiv.org/pdf/2603.16086.pdf)  <li>**核心亮点**: 构建首个统一处理视觉、听觉、语言与动作的多模态具身框架（HEAR），实现基于声音线索的精准操控。  <li>**深度解析**: HEAR 框架提出一种新型多模态融合架构，将声音特征（如撞击音、摩擦音）嵌入到视觉-语言-动作（VLA）系统中，形成“声-视-语-动”闭环。其核心是引入**声音注意力门控机制**（Sound-Gated Attention），让模型在执行任务时主动聚焦于与目标动作相关的音频事件（如“杯子掉落的声音”）。该框架在真实机器人平台上验证，成功完成“根据声音判断是否打翻水杯”、“通过敲击声定位隐藏物体”等任务。研究进一步揭示，声音信息可有效补充视觉模糊或遮挡下的动作理解，尤其在无视觉反馈或光照不足条件下表现突出。此工作推动了**世界建模**向多感官融合方向演进，为构建更鲁棒的具身智能体提供了新范式。
-
----
-
-<h3> 11. <span style="color:#e67e22">🔥</span> [You've Got a Golden Ticket: Improving Generative Robot Policies With A Single Noise Vector] (你有一张黄金门票：仅用一个噪声向量提升生成式机器人策略)  <li>**PDF链接**: [点击跳转](https://arxiv.org/pdf/2603.15757.pdf)  <li>**核心亮点**: 发现单一随机噪声向量即可极大提升生成式机器人策略（如Diffusion Policy）的多样性与鲁棒性，突破传统采样瓶颈。  <li>**深度解析**: 该论文揭示了一个惊人现象：在扩散策略（Diffusion Policy）中，仅需在条件输入中注入一个全局共享的噪声向量（称为“Golden Ticket”），即可显著提升策略在多样化任务中的泛化能力。作者通过大量实验证明，该方法在不增加计算成本的前提下，使策略在相同条件下生成更多安全且有效的动作序列，尤其在高风险任务（如抓取易碎品）中表现出更强的容错性。进一步分析表明，该噪声向量实际上引导了潜空间中“动作流形”的探索路径，从而实现了**动作分块（Action Chunking, ACT）** 的隐式建模。该发现为生成式策略提供了一种极简但高效的控制机制，成为连接**扩散策略**与**动作分块**理论的关键桥梁。
-
----
-
-<h3> 12. <span style="color:#e67e22">🔥</span> [ExpertGen: Scalable Sim-to-Real Expert Policy Learning from Imperfect Behavior Priors] (ExpertGen：从不完美行为先验中可扩展地学习模拟到现实的专家策略)  <li>**PDF链接**: [点击跳转](https://arxiv.org/pdf/2603.15956.pdf)  <li>**核心亮点**: 提出一种基于不完美行为先验的可扩展模拟到现实策略学习框架，解决真实世界专家数据稀缺问题。  <li>**深度解析**: ExpertGen 创造性地将“伪专家”数据（如人类误操作、非最优示范）纳入训练流程，通过构建一个**行为一致性正则化模块**，自动识别并纠正错误行为模式。其核心思想是：即使初始策略质量较低，只要保证动作序列在语义层面与目标任务一致，就可通过强化学习逐步优化。该方法在多个具身任务（如拧瓶盖、插入插头）中实现了从模拟中生成接近真实专家水平的策略，且仅需10%的真实交互数据。研究还首次量化了**具身数据 Scaling Laws**——当模拟数据规模扩大10倍时，真实世界性能提升达42%。此外，该框架支持跨具身数据集迁移，证明其在构建通用具身智能系统中的巨大潜力。
-
----
-
-<h3> 13. <span style="color:#e67e22">🔥</span> [FlatLands: Generative Floormap Completion From a Single Egocentric View] (FlatLands：从单个视角生成平面地图补全)  <li>**PDF链接**: [点击跳转](https://arxiv.org/pdf/2603.16016.pdf)  <li>**核心亮点**: 基于单眼视角实现高质量、可交互的楼层平面图生成，推动具身导航中的世界建模发展。  <li>**深度解析**: FlatLands 提出一种基于扩散模型的生成式地图补全框架，仅需一个来自机器人摄像头的单帧图像，即可生成完整、结构合理的室内布局图（包括房间边界、门洞位置、家具摆放）。其创新点在于引入**空间一致性约束损失**与**拓扑感知解码器**，确保生成地图满足物理合理性（如门不能开在墙上）与语义连贯性（如厨房应靠近餐厅）。该模型在多个公开具身数据集（如Habitat, Gibson）上训练，并在跨具身数据集迁移测试中展现出强大泛化能力。更重要的是，生成的地图可直接用于路径规划与任务推理，构成一个完整的**世界建模**闭环。该工作标志着从“感知—动作”到“感知—建模—决策”范式的跃迁，是构建真正自主具身智能体的关键一步。
-
----
-
-> ✅ 所有入选论文均符合以下标准：  
-> - 包含 **Vision-Language-Action (VLA)**、**World Models / World Modeling**、**Video-Action Model**、**Diffusion Policy**、**Action Chunking (ACT)**、**Scaling Laws**、**Cross-Embodied Datasets** 等核心关键词；  
-> - 排除经典控制、硬件/步态、无人机/车、医疗手术、纯触觉、多智能体等限制项；  
-> - 编号从 7 开始，按逻辑优先级排序（由世界建模→视频生成→策略生成→跨数据集泛化）。</body></html>
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>📚 具身大模型科研日报 - 历史索引</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <style>
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+            </style>
+        </head>
+        <body class="markdown-body">
+            
+            <h1>📚 具身大模型科研日报 - 历史索引</h1>
+            <div id="content"></div>
+            <script>
+                const rawMd = "### \ud83d\udcc5 \u5386\u53f2\u5b58\u6863\u5217\u8868\n\n- [Wed 18 Mar 2026 showing 69 of 69 entries ](archive/Wed_18_Mar_2026_showing_69_of_69_entries_.html)\n";
+                document.getElementById('content').innerHTML = marked.parse(rawMd);
+            </script>
+        </body>
+        </html>
+        
