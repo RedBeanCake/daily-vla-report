@@ -13,7 +13,6 @@ client_llm = OpenAI(
 )
 FEISHU_WEBHOOK = os.getenv("FEISHU_WEBHOOK")
 
-# 动态解析 GitHub 仓库信息
 repo_full_name = os.getenv('GITHUB_REPOSITORY', 'owner/repo')
 repo_owner = os.getenv('GITHUB_REPOSITORY_OWNER', 'owner')
 repo_name = repo_full_name.split('/')[-1]
@@ -22,16 +21,25 @@ GITHUB_PAGES_URL = f"https://{repo_owner}.github.io/{repo_name}/"
 CATEGORIES = ['cs.RO']
 
 def scrape_arxiv(category):
-    """抓取 Arxiv 最新批次论文数据"""
+    """抓取 Arxiv 数据，并提取日期前缀和总论文数"""
     url = f"https://arxiv.org/list/{category}/recent?show=500"
     headers = {'User-Agent': 'Mozilla/5.0'}
     try:
         res = requests.get(url, headers=headers, timeout=15)
         soup = BeautifulSoup(res.text, 'html.parser')
         dls = soup.find_all('dl', id='articles')
-        if not dls: return None, []
+        if not dls: return None, 0, []
         
-        target_date = soup.find_all('h3')[0].text.strip()
+        # 提取标题日期，例如：Wed, 18 Mar 2026 (showing 69 of 69 entries )
+        raw_date_str = soup.find_all('h3')[0].text.strip()
+        match = re.search(r'^(.*)\(showing \d+ of (\d+) entries', raw_date_str)
+        if match:
+            date_prefix = match.group(1).strip()
+            total_entries = match.group(2)
+        else:
+            date_prefix = raw_date_str
+            total_entries = "0"
+
         papers = []
         dt_tags = dls[0].find_all('dt')
         dd_tags = dls[0].find_all('dd')
@@ -42,22 +50,17 @@ def scrape_arxiv(category):
             id_str = link_tag.text.replace('arXiv:', '').strip()
             title = dd.find('div', class_='list-title').text.replace('Title:', '').strip()
             abstract = dd.find('p', class_='mathjax').text.strip() if dd.find('p', class_='mathjax') else ""
-            papers.append({
-                "id": id_str, 
-                "title": title, 
-                "url": f"https://arxiv.org/pdf/{id_str}.pdf", 
-                "abstract": abstract[:1000]
-            })
-        return target_date, papers
-    except Exception: return None, []
+            papers.append({"id": id_str, "title": title, "abstract": abstract[:1000]})
+        
+        return {"prefix": date_prefix, "total": total_entries}, len(papers), papers
+    except Exception: return None, 0, []
 
-def process_with_ai(papers, date_text):
-    """调用大模型进行结构化筛选与提炼"""
+def process_with_ai(papers):
+    """恢复为直接输出 Markdown 的版本，去掉排序和评分"""
     if not papers: return ""
     global_id_counter = 1
     final_res = []
     
-    # 分块处理 (40篇一组)
     for i in range(0, len(papers), 40):
         chunk = papers[i:i+40]
         prompt = f"""你是一个专注于【大模型具身智能】的顶级研究员。请从以下论文中筛选并编号。
@@ -69,9 +72,9 @@ def process_with_ai(papers, date_text):
         
         🛑 需要剔除：
         1. 经典控制(PID, MPC)、硬件/软体/步态研究。
-        2. 传统导航、经典路径规划(A*, RRT)、SLAM、传感器标定。
+        2. 传统导航、路径规划(A*, RRT)、SLAM、传感器标定。
         3. 垂直场景：深海、巡检、无人机/车、攀爬、医疗/手术机器人。
-        4. 经典视觉：单纯的人体姿态识别、纯 3D 重建(NeRF/GS/三维几何)、单纯触觉。
+        4. 经典视觉：单纯的人体姿态识别、纯 3D 重建(NeRF/GS)、单纯触觉。
         5. 多智能体协同/集群 (Swarm)、离散任务调度。
 
         ⚠️ 输出极其严格限制：
@@ -80,13 +83,14 @@ def process_with_ai(papers, date_text):
         3. **重要**：每篇论文结束后必须紧跟一个 --- 作为分割线。
 
         要求：
-        1. 请从编号 {global_id_counter} 开始为筛选出的论文连续编号。
+        1. 请从编号 {global_id_counter} 开始连续编号。
         2. 格式（Markdown）：
            ### {global_id_counter}. 🔥 [英文题目] (中文题目翻译)
            - **论文链接**: [点击跳转](https://arxiv.org/abs/{{id}})
-           - **核心亮点**: (一句话说明该文最核心的创新点)。
-           - **深度解析**: (一段话详细描述技术方案、训练数据规模、实验结论及物理意义)。
+           - **核心亮点**: (一句话创新点)。
+           - **深度解析**: (一段话技术方案、训练规模及物理意义解析)。
            - **领域归类**: [归类版块]
+           ---
 
         待处理数据内容：
         {json.dumps(chunk)}
@@ -99,32 +103,28 @@ def process_with_ai(papers, date_text):
             )
             res = completion.choices[0].message.content
             if "###" in res:
-                final_res.append(res)
+                final_res.append(res.strip())
                 global_id_counter += res.count("###")
-        except Exception as e:
-            print(f"AI Error: {e}")
+        except Exception: pass
             
-    return "\n\n---\n\n".join(final_res)
+    return "\n\n".join(final_res)
 
-def generate_archive_and_index(date_text, content):
-    """生成详情页（含 Sources 区）并更新索引页"""
+def generate_archive_and_index(date_info, content):
+    """生成详情页并更新索引，保留动态标题和 NotebookLM 功能"""
     count = content.count("###")
-    safe_date = re.sub(r'[^\w\s-]', '', date_text).replace(' ', '_')
+    display_title = f"{date_info['prefix']} (showing {count} of {date_info['total']} entries)"
     
+    safe_date_filename = re.sub(r'[^\w\s-]', '', date_info['prefix']).replace(' ', '_')
     os.makedirs('archive', exist_ok=True)
-    daily_file_path = f"archive/{safe_date}.html"
+    daily_file_path = f"archive/{safe_date_filename}.html"
 
-    # --- 1. 提取 Arxiv ID 并构建链接列表 ---
+    # 提取 ID 用于 NotebookLM 链接
     paper_ids = re.findall(r'abs/(\d+\.\d+)', content)
-    sources_list = [f"https://arxiv.org/html/{pid}" for pid in paper_ids]
-    sources_text = "\n".join(sources_list)
+    sources_text = "\n".join([f"https://arxiv.org/html/{pid}" for pid in paper_ids])
 
-    # --- 2. 定义 HTML 模板生成器 ---
     def get_html_template(title, body_content, is_index_page=False, sources_block=""):
-        # 索引页不需要返回链接
         back_link = "<a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>" if not is_index_page else ""
         safe_body = body_content.replace('</script>', '<\\/script>')
-        
         return f"""
         <!DOCTYPE html>
         <html lang="zh-CN">
@@ -140,7 +140,7 @@ def generate_archive_and_index(date_text, content):
                 @media (max-width: 767px) {{ .markdown-body {{ padding: 15px; }} }}
                 .sources-box {{ margin-top: 50px; padding: 20px; background: #f6f8fa; border: 1px dashed #d0d7de; border-radius: 10px; }}
                 .sources-box textarea {{ width: 100%; height: 100px; margin: 10px 0; padding: 10px; font-family: monospace; font-size: 12px; border: 1px solid #d0d7de; border-radius: 6px; resize: none; }}
-                .copy-btn {{ background-color: #2da44e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }}
+                .copy-btn {{ background-color: #2da44e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }}
             </style>
         </head>
         <body class="markdown-body">
@@ -151,59 +151,56 @@ def generate_archive_and_index(date_text, content):
             <script type="text/markdown" id="raw-markdown">{safe_body}</script>
             <script>
                 const rawMdElement = document.getElementById('raw-markdown');
-                if (rawMdElement) {{
-                    document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent);
-                }}
+                if (rawMdElement) {{ document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent); }}
                 function copySources() {{
                     const textArea = document.getElementById('sources-text');
                     textArea.select();
                     document.execCommand('copy');
-                    alert('已复制所有链接，请前往 NotebookLM 粘贴');
+                    alert('已复制链接，请前往 NotebookLM 粘贴');
                 }}
             </script>
         </body>
         </html>
         """
 
-    # --- 3. 构建 Sources 区域的 HTML（仅用于详情页） ---
     sources_html = ""
-    if sources_list:
+    if sources_text:
         sources_html = f"""
         <div class="sources-box">
-            <h3>🔗 NotebookLM Sources 集合区</h3>
+            <h3>🔗 NotebookLM Sources 集合区 (共 {count} 篇)</h3>
             <textarea id="sources-text" readonly>{sources_text}</textarea>
-            <button class="copy-btn" onclick="copySources()">📋 复制所有 {len(sources_list)} 个来源链接</button>
+            <button class="copy-btn" onclick="copySources()">📋 复制所有来源链接</button>
         </div>
         """
 
-    # --- 4. 写入每日详情页 ---
     with open(daily_file_path, "w", encoding="utf-8") as f:
-        f.write(get_html_template(f"🤖 具身大模型简报 - {date_text}", content, is_index_page=False, sources_block=sources_html))
+        f.write(get_html_template(f"🤖 具身大模型简报 - {display_title}", content, False, sources_html))
 
-    # --- 5. 写入索引页 (index.html) ---
     history_files = sorted([f for f in os.listdir('archive') if f.endswith('.html')], reverse=True)
     index_md = "### 📅 历史存档列表\n\n"
     for f_name in history_files:
-        display_date = f_name.replace('.html', '').replace('_', ' ')
-        index_md += f"- [{display_date}](archive/{f_name})\n"
+        try:
+            with open(f"archive/{f_name}", "r", encoding="utf-8") as hf:
+                file_soup = BeautifulSoup(hf.read(), 'html.parser')
+                full_title = file_soup.title.string.replace("🤖 具身大模型简报 - ", "")
+                index_md += f"- [{full_title}](archive/{f_name})\n"
+        except:
+            display_date_item = f_name.replace('.html', '').replace('_', ' ')
+            index_md += f"- [{display_date_item}](archive/{f_name})\n"
     
     with open("index.html", "w", encoding="utf-8") as f:
-        f.write(get_html_template("📚 具身大模型科研日报 - 历史索引", index_md, is_index_page=True))
+        f.write(get_html_template("📚 具身大模型科研日报 - 历史索引", index_md, True))
 
-    # --- 6. 推送飞书卡片 ---
-    payload = {
+    requests.post(FEISHU_WEBHOOK, json={
         "msg_type": "interactive",
         "card": {
-            "header": {"title": {"tag": "plain_text", "content": f"🌟 具身大模型精选 | {date_text}"}, "template": "blue"},
+            "header": {"title": {"tag": "plain_text", "content": f"🌟 具身精选 | {display_title}"}, "template": "blue"},
             "elements": [
                 {"tag": "div", "text": {"tag": "lark_md", "content": f"今日已精选 **{count}** 篇 VLA 相关论文。"}},
-                {"tag": "action", "actions": [
-                    {"tag": "button", "text": {"tag": "plain_text", "content": "🌐 进入网页查看 & 复制 Notebook 链接"}, "type": "primary", "url": GITHUB_PAGES_URL}
-                ]}
+                {"tag": "action", "actions": [{"tag": "button", "text": {"tag": "plain_text", "content": "🌐 查看网页 & 复制 Notebook 链接"}, "type": "primary", "url": GITHUB_PAGES_URL}]}
             ]
         }
-    }
-    requests.post(FEISHU_WEBHOOK, json=payload)
+    })
 
 if __name__ == "__main__":
     all_p = {}
@@ -214,8 +211,5 @@ if __name__ == "__main__":
         for p in ps: all_p[p['id']] = p
     
     content = process_with_ai(list(all_p.values()))
-    
-    # 只要抓取到了日期信息（证明 Arxiv 没挂），就执行一次生成
-    # 这样 generate_archive_and_index 会重新扫描 archive 文件夹并刷新 index.html
     if date_info: 
         generate_archive_and_index(date_info, content or "")
