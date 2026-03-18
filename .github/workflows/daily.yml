@@ -2,8 +2,8 @@ name: Daily VLA Report
 
 on:
   schedule:
-    - cron: '0 6 * * 1-5' # 每天北京时间 14:00 自动跑
-  workflow_dispatch: # 允许你点击按钮手动运行一次
+    - cron: '0 6 * * 1-5' # 北京时间 14:00
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -13,11 +13,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # 获取完整历史以便提交
+
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.9'
+
       - run: pip install requests beautifulsoup4 openai
+
       - name: Run Scraper
         env:
           DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
@@ -25,6 +30,15 @@ jobs:
           GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
           GITHUB_REPOSITORY: ${{ github.event.repository.name }}
         run: python main.py
+
+      - name: Commit & Push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add index.html archive/*.html
+          git commit -m "Auto-update: Add daily report for $(date +'%Y-%m-%d')" || echo "No changes to commit"
+          git push origin main
+
       - name: Deploy to Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
