@@ -21,12 +21,24 @@ GITHUB_PAGES_URL = f"https://{repo_owner}.github.io/{repo_name}/"
 CATEGORIES = ['cs.RO']
 
 def scrape_hf_daily():
-    """抓取 Hugging Face Daily Papers 原始数据"""
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+    """抓取 Hugging Face Daily Papers 原始数据（仅保留最新一天的论文）"""
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'}
     try:
+        # 依然请求 100 篇，保证能完全覆盖今天的数据量
         res = requests.get("https://huggingface.co/api/daily_papers?limit=100", headers=headers, timeout=15)
         if res.status_code != 200: return []
-        return res.json()
+        
+        papers_data = res.json()
+        if not isinstance(papers_data, list) or len(papers_data) == 0:
+            return []
+            
+        # 【核心修复】：找到这批数据中最新的一天（列表第一篇的上榜日期）
+        latest_date = papers_data[0].get('publishedAt', '').split('T')[0]
+        
+        # 过滤：只保留上榜日期等于最新日期的论文
+        today_papers = [p for p in papers_data if p.get('publishedAt', '').startswith(latest_date)]
+        
+        return today_papers
     except Exception as e:
         print(f"HF Scrape Error: {e}")
         return []
