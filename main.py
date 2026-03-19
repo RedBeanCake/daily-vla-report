@@ -37,17 +37,22 @@ def process_hf_with_ai(hf_papers):
     
     # 提取关键信息给 AI
     simple_list = []
+    # 提取关键信息给 AI
+    simple_list = []
     for p in hf_papers:
-        # 安全获取 paper 字典，防止整体结构异常
+        # 安全获取 paper 字典
         paper_info = p.get('paper', {})
         if not paper_info or 'id' not in paper_info:
             continue
             
+        # 【核心修复】：点赞数实际上嵌套在内层的 paper_info 中
+        # 为了绝对安全，我们同时从外层和内层尝试获取
+        upvotes_count = p.get('upvotes') or paper_info.get('upvotes', 0)
+        
         simple_list.append({
             "id": paper_info.get('id', ''),
             "title": paper_info.get('title', 'Unknown Title'),
-            # 核心修复：使用 .get()，如果找不到 'upvotes' 键就默认设为 0
-            "upvotes": p.get('upvotes', 0) 
+            "upvotes": upvotes_count
         })
 
     prompt = f"""你是一个 AI 大模型专家。请为以下 Hugging Face 每日热门论文提供中文解析。
