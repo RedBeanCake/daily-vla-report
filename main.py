@@ -20,6 +20,36 @@ GITHUB_PAGES_URL = f"https://{repo_owner}.github.io/{repo_name}/"
 
 CATEGORIES = ['cs.RO']
 
+def scrape_hf_daily():
+    """抓取 Hugging Face Daily Papers 并封装在折叠框内"""
+    try:
+        # 调用 HF 官方 API
+        res = requests.get("https://huggingface.co/api/daily_papers", timeout=15)
+        papers_data = res.json()
+        
+        # 使用 HTML 标签实现折叠效果
+        hf_md = "<details>\n<summary><b>🤗 Hugging Face Community Choice (点击展开今日热门论文)</b></summary>\n\n"
+        hf_md += "## 🤗 Hugging Face Community Choice\n"
+        
+        for idx, entry in enumerate(papers_data, 1):
+            p = entry['paper']
+            upvotes = entry['upvotes']
+            paper_id = p['id']
+            title = p['title']
+            
+            # 构造内容
+            seg = f"### {idx}. [{title}](https://huggingface.co/papers/{paper_id})\n"
+            seg += f"- **社区热度**: `👍 {upvotes} Upvotes`\n"
+            seg += f"- **论文链接**: [点击跳转](https://arxiv.org/abs/{paper_id})\n"
+            seg += "---\n"
+            hf_md += seg
+            
+        hf_md += "\n</details>"
+        return hf_md
+    except Exception as e:
+        print(f"HF Scrape Error: {e}")
+        return ""
+        
 def scrape_arxiv(category):
     """抓取 Arxiv 数据，并提取日期前缀和总论文数"""
     url = f"https://arxiv.org/list/{category}/recent?show=500"
@@ -109,17 +139,22 @@ def process_with_ai(papers):
             
     return "\n\n".join(final_res)
 
-def generate_archive_and_index(date_info, content):
-    """生成详情页并更新索引，保留动态标题和 NotebookLM 功能"""
-    count = content.count("###")
+def generate_archive_and_index(date_info, arxiv_content, hf_content=""):
+    """生成详情页并更新索引，HF 内容置顶折叠且不计入 Sources 提取区"""
+    
+    # 1. 拼接最终显示的完整内容（HF 在前，Arxiv 在后）
+    full_display_content = hf_content + "\n\n" + (arxiv_content or "")
+    
+    # 2. 统计总篇数（包含 HF 和筛选后的 Arxiv）
+    count = full_display_content.count("###")
     display_title = f"{date_info['prefix']} (showing {count} of {date_info['total']} entries)"
     
     safe_date_filename = re.sub(r'[^\w\s-]', '', date_info['prefix']).replace(' ', '_')
     os.makedirs('archive', exist_ok=True)
     daily_file_path = f"archive/{safe_date_filename}.html"
 
-    # 提取 ID 用于 NotebookLM 链接
-    paper_ids = re.findall(r'abs/(\d+\.\d+)', content)
+    # 3. 【关键修改】仅从 arxiv_content 中提取 ID，确保 Sources 区纯净
+    paper_ids = re.findall(r'abs/(\d+\.\d+)', arxiv_content)
     sources_text = "\n".join([f"https://arxiv.org/html/{pid}" for pid in paper_ids])
 
     def get_html_template(title, body_content, is_index_page=False, sources_block=""):
@@ -141,6 +176,9 @@ def generate_archive_and_index(date_info, content):
                 .sources-box {{ margin-top: 50px; padding: 20px; background: #f6f8fa; border: 1px dashed #d0d7de; border-radius: 10px; }}
                 .sources-box textarea {{ width: 100%; height: 100px; margin: 10px 0; padding: 10px; font-family: monospace; font-size: 12px; border: 1px solid #d0d7de; border-radius: 6px; resize: none; }}
                 .copy-btn {{ background-color: #2da44e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }}
+                /* 新增：折叠框样式优化 */
+                details {{ margin-bottom: 20px; padding: 15px; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; }}
+                summary {{ cursor: pointer; font-size: 16px; font-weight: bold; color: #0969da; }}
             </style>
         </head>
         <body class="markdown-body">
@@ -167,15 +205,17 @@ def generate_archive_and_index(date_info, content):
     if sources_text:
         sources_html = f"""
         <div class="sources-box">
-            <h3>🔗 NotebookLM Sources 集合区 (共 {count} 篇)</h3>
+            <h3>🔗 NotebookLM Sources 集合区 (仅 Arxiv 筛选共 {len(paper_ids)} 篇)</h3>
             <textarea id="sources-text" readonly>{sources_text}</textarea>
-            <button class="copy-btn" onclick="copySources()">📋 复制所有来源链接</button>
+            <button class="copy-btn" onclick="copySources()">📋 复制 Arxiv 来源链接</button>
         </div>
         """
 
+    # 4. 【关键修改】写入文件时使用全量内容 full_display_content
     with open(daily_file_path, "w", encoding="utf-8") as f:
-        f.write(get_html_template(f"🤖 具身大模型简报 - {display_title}", content, False, sources_html))
+        f.write(get_html_template(f"🤖 具身大模型简报 - {display_title}", full_display_content, False, sources_html))
 
+    # 更新索引页（逻辑保持不变）
     history_files = sorted([f for f in os.listdir('archive') if f.endswith('.html')], reverse=True)
     index_md = "### 📅 历史存档列表\n\n"
     for f_name in history_files:
@@ -191,12 +231,13 @@ def generate_archive_and_index(date_info, content):
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(get_html_template("📚 具身大模型科研日报 - 历史索引", index_md, True))
 
+    # 推送飞书（使用 full_display_content 的 count）
     requests.post(FEISHU_WEBHOOK, json={
         "msg_type": "interactive",
         "card": {
             "header": {"title": {"tag": "plain_text", "content": f"🌟 具身精选 | {display_title}"}, "template": "blue"},
             "elements": [
-                {"tag": "div", "text": {"tag": "lark_md", "content": f"今日已精选 **{count}** 篇 VLA 相关论文。"}},
+                {"tag": "div", "text": {"tag": "lark_md", "content": f"今日共精选 **{count}** 篇论文（含 HF 热门）。"}},
                 {"tag": "action", "actions": [{"tag": "button", "text": {"tag": "plain_text", "content": "🌐 查看网页 & 复制 Notebook 链接"}, "type": "primary", "url": GITHUB_PAGES_URL}]}
             ]
         }
@@ -210,6 +251,12 @@ if __name__ == "__main__":
         if info: date_info = info
         for p in ps: all_p[p['id']] = p
     
-    content = process_with_ai(list(all_p.values()))
+    # 1. 获取 AI 筛选后的 Arxiv 内容
+    arxiv_content = process_with_ai(list(all_p.values()))
+    
+    # 2. 获取 HF 热门内容
+    hf_content = scrape_hf_daily()
+    
+    # 3. 传入两个部分进行页面生成
     if date_info: 
-        generate_archive_and_index(date_info, content or "")
+        generate_archive_and_index(date_info, arxiv_content or "", hf_content)
