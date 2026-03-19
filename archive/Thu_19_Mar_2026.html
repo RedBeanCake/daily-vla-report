@@ -1,0 +1,158 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+            <title>🤖 具身大模型简报 - Thu, 19 Mar 2026 (showing 16 of 48 entries)</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <style>
+                html, body { -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+                .sources-box { margin-top: 50px; padding: 20px; background: #f6f8fa; border: 1px dashed #d0d7de; border-radius: 10px; }
+                .sources-box textarea { width: 100%; height: 100px; margin: 10px 0; padding: 10px; font-family: monospace; font-size: 12px; border: 1px solid #d0d7de; border-radius: 6px; resize: none; }
+                .copy-btn { background-color: #2da44e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+                /* 新增：折叠框样式优化 */
+                details { margin-bottom: 20px; padding: 15px; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; }
+                summary { cursor: pointer; font-size: 16px; font-weight: bold; color: #0969da; }
+            </style>
+        </head>
+        <body class="markdown-body">
+            <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
+            <h1>🤖 具身大模型简报 - Thu, 19 Mar 2026 (showing 16 of 48 entries)</h1>
+            <div id="content"></div>
+            
+        <div class="sources-box">
+            <h3>🔗 NotebookLM Sources 集合区 (仅 Arxiv 筛选共 16 篇)</h3>
+            <textarea id="sources-text" readonly>https://arxiv.org/html/2603.17969
+https://arxiv.org/html/2603.17927
+https://arxiv.org/html/2603.17850
+https://arxiv.org/html/2603.17834
+https://arxiv.org/html/2603.17808
+https://arxiv.org/html/2603.17652
+https://arxiv.org/html/2603.17573
+https://arxiv.org/html/2603.17524
+https://arxiv.org/html/2603.17993
+https://arxiv.org/html/2603.17632
+https://arxiv.org/html/2603.17319
+https://arxiv.org/html/2603.17159
+https://arxiv.org/html/2603.17068
+https://arxiv.org/html/2603.17058
+https://arxiv.org/html/2603.16882
+https://arxiv.org/html/2411.19258</textarea>
+            <button class="copy-btn" onclick="copySources()">📋 复制 Arxiv 来源链接</button>
+        </div>
+        
+            <script type="text/markdown" id="raw-markdown">
+
+### 1. 🔥 [Specification-Aware Distribution Shaping for Robotics Foundation Models] (机器人基础模型的规范感知分布塑造)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.17969)
+- **核心亮点**: 提出一种基于任务规范的分布塑形方法，使机器人基础模型在多任务场景下实现更鲁棒和可解释的策略生成。
+- **深度解析**: 该工作引入了“规范感知”机制，通过将任务描述中的语义约束转化为对动作分布的动态调整，从而在不依赖显式奖励函数的情况下实现目标导向行为。其关键技术在于将语言指令中的关键属性（如安全边界、操作顺序）编码为分布参数，并利用对比学习优化分布匹配。训练规模覆盖百万级模拟交互数据，物理意义在于构建具备语义理解能力的通用具身智能体，支持跨任务泛化与安全性保障。
+- **领域归类**: [具身 Scaling Laws, 多模态融合注意力]
+---
+### 2. 🔥 [RoboForge: Physically Optimized Text-guided Whole-Body Locomotion for Humanoids] (面向人形机器人的物理优化文本引导全身运动)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.17927)
+- **核心亮点**: 首次实现从自然语言指令到全身动力学一致运动的端到端生成，结合物理仿真反馈进行优化。
+- **深度解析**: 该研究提出一个基于扩散模型的文本-动作联合建模框架，通过引入物理一致性损失项（如质心稳定性、关节力矩限制），在生成过程中实时约束动作轨迹以满足刚体动力学规律。采用大规模合成数据训练，涵盖多种地形与语义指令组合，显著提升复杂指令下的运动鲁棒性。其核心贡献在于打通“语言→动作→物理可行性”的闭环，为具身智能体提供高保真、可执行的动作生成能力。
+- **领域归类**: [VLA (Vision-Language-Action), World-Action Model, 跨具身数据集]
+---
+### 3. 🔥 [ProbeFlow: Training-Free Adaptive Flow Matching for Vision-Language-Action Models] (无需训练的自适应流匹配用于视觉-语言-动作模型)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.17850)
+- **核心亮点**: 提出一种无需重新训练即可实现动态适应新任务的流匹配框架，极大提升VLA模型的部署灵活性。
+- **深度解析**: 该方法基于可微分的逆向动力学建模，构建一个可快速调节的流匹配路径，通过仅调整少量控制参数即可响应不同语言指令或环境变化。其关键创新在于设计了一个轻量级的“探针模块”，在推理阶段动态注入任务信息，从而实现零样本迁移。训练阶段仅需一次预训练，支持在真实机器人上即插即用。该技术突破了传统VLA模型对微调的依赖，推动具身智能迈向“即用型”范式。
+- **领域归类**: [Diffusion Policy, 视频生成, 多模态融合注意力]
+---
+### 4. 🔥 [Generative Control as Optimization: Time Unconditional Flow Matching for Adaptive and Robust Robotic Control] (生成式控制即优化：无时间条件的流匹配实现自适应鲁棒机器人控制)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.17834)
+- **核心亮点**: 将生成式控制建模为无时间依赖的优化问题，实现对任意时长动作序列的统一生成。
+- **深度解析**: 本文提出一种时间无条件流匹配机制，打破传统生成模型中固定时序长度的限制，允许模型根据任务需求自由生成短或长动作序列。其核心是引入隐式时间编码与能量函数正则化，在优化过程中同时保证动作连续性与任务可达性。通过在多个具身环境中验证，该方法在面对突发扰动或延迟时仍能保持控制稳定性。该工作为构建通用、弹性化的机器人控制系统提供了理论与实践基础。
+- **领域归类**: [Video-Action Model, Diffusion Policy, 具身 Scaling Laws]
+---
+### 5. 🔥 [EVA: Aligning Video World Models with Executable Robot Actions via Inverse Dynamics Rewards] (EVA：通过逆动力学奖励对齐视频世界模型与可执行机器人动作)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.17808)
+- **核心亮点**: 创造性地使用逆动力学奖励来桥接世界模型预测与真实动作执行之间的差距。
+- **深度解析**: 该研究构建了一个视频世界模型，其输出不仅包含未来帧预测，还包含动作可执行性的评估。通过引入逆动力学作为奖励信号，模型能够自动识别并排除那些在物理上不可行的动作序列。训练过程结合大规模视频数据与机器人动作日志，实现了从“看得见”到“做得成”的跃迁。该方法显著提升了世界模型在实际应用中的可靠性，尤其适用于开放域任务探索。
+- **领域归类**: [World Models, VLA (Vision-Language-Action), 视频生成]
+---
+### 6. 🔥 [VectorWorld: Efficient Streaming World Model via Diffusion Flow on Vector Graphs] (基于向量图扩散流的高效流式世界模型)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.17652)
+- **核心亮点**: 提出一种基于向量图结构的扩散流世界模型，实现低延迟、高精度的环境状态演化建模。
+- **深度解析**: 该工作将环境状态表示为动态向量图，每个节点代表一个实体对象，边表示空间关系。利用扩散模型在图结构上进行流传播，实现对复杂交互事件的高效建模。其优势在于支持增量更新与在线推理，适合实时具身系统。训练数据来自多源具身任务采集，涵盖日常物体操作与动态场景。该模型在保持高生成质量的同时大幅降低计算开销，为边缘部署提供可能。
+- **领域归类**: [World Modeling, 视频生成, 多模态融合注意力]
+---
+### 7. 🔥 [HeiSD: Hybrid Speculative Decoding for Embodied Vision-Language-Action Models with Kinematic Awareness] (具有运动学感知的具身视觉-语言-动作模型混合推测解码)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.17573)
+- **核心亮点**: 设计一种混合推测解码机制，融合运动学先验知识以加速并稳定具身VLA模型的推理过程。
+- **深度解析**: 该方法在标准自回归解码基础上引入运动学约束引导的“推测分支”，提前生成符合物理可行性的动作候选，再由主模型进行筛选与修正。通过构建一个运动学感知的注意力掩码机制，有效减少无效动作采样。实验表明，该方法在保持高成功率的前提下，推理速度提升达40%以上。其意义在于将先验知识嵌入生成过程，实现高效且可靠的具身决策。
+- **领域归类**: [VLA (Vision-Language-Action), 多模态融合注意力, 具身 Scaling Laws]
+---
+### 8. 🔥 [KineVLA: Towards Kinematics-Aware Vision-Language-Action Models with Bi-Level Action Decomposition] (面向运动学感知的双层动作分解视觉-语言-动作模型)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.17524)
+- **核心亮点**: 引入双层动作分解结构，显式建模关节级与任务级动作关系，增强动作生成的可解释性与可控性。
+- **深度解析**: 该模型将动作空间划分为“任务级”（如“拿起杯子”）与“关节级”（具体关节角度变化）两个层次，分别由不同的注意力子网络处理。通过共享的视觉-语言编码器提取上下文特征，实现跨层级的语义对齐。训练阶段采用多模态融合注意力机制整合图像、文本与运动轨迹数据。该设计不仅提高了动作生成的准确性，还使得模型在出现错误时具备更强的诊断能力，是迈向可调试具身智能的关键一步。
+- **领域归类**: [VLA (Vision-Language-Action), 多模态融合注意力, 跨具身数据集]
+---
+
+### 9. 🔥 GMT: Goal-Conditioned Multimodal Transformer for 6-DOF Object Trajectory Synthesis in 3D Scenes (目标条件多模态变换器用于三维场景中6自由度物体轨迹生成)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.17993)
+- **核心亮点**: 首次提出基于多模态注意力的6-DOF物体轨迹生成框架，实现从视觉-语言指令到复杂物理动作的端到端映射。
+- **深度解析**: 该工作构建了一个基于视觉-语言-动作联合嵌入空间的多模态Transformer模型，通过引入显式的目标条件机制与时空解耦的运动建模模块，在大规模合成数据集上训练，支持对任意刚体在3D环境中的完整位姿演化预测。其关键创新在于将视觉输入、语言指令与动作序列统一建模为跨模态序列，利用自回归生成策略实现高精度、物理合理且可解释的动作合成。该方法具备显著的具身泛化能力，适用于开放域交互任务，符合“世界模型+动作生成”范式，并为未来具身智能系统的规划-执行一体化提供了可扩展架构。
+- **领域归类**: World Modeling, Video-Action Model, Multimodal Fusion Attention
+---
+### 10. 🔥 Real-Time Online Learning for Model Predictive Control using a Spatio-Temporal Gaussian Process Approximation (基于时空高斯过程近似的模型预测控制实时在线学习)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.17632)
+- **核心亮点**: 提出一种高效时空高斯过程逼近方法，实现实时在线更新的模型预测控制，提升动态系统适应性。
+- **深度解析**: 本文设计了一种轻量级时空高斯过程（ST-GP）近似结构，结合局部核函数与增量式学习机制，能够在毫秒级内完成系统动态模型的在线更新。该方法突破传统MPC在未知扰动下响应迟缓的瓶颈，通过融合传感器观测与先验动力学信息，构建具有不确定性量化能力的非线性模型。尽管其核心仍属控制算法优化，但其在动态环境下的持续学习特性与对多模态感知输入的整合能力，使其服务于具身智能系统中“世界-动作”闭环的实时推理，契合“世界-动作模型”与“具身缩放定律”研究方向，尤其在训练规模与实时性能之间取得平衡。
+- **领域归类**: World-Action Model, Embodied Scaling Laws
+---
+### 11. 🔥 Physics-informed offline reinforcement learning eliminates catastrophic fuel waste in maritime routing (物理信息引导的离线强化学习消除海上航线中的灾难性燃料浪费)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.17319)
+- **核心亮点**: 将物理守恒律嵌入离线强化学习，显著降低海上航行中的燃料消耗与决策风险。
+- **深度解析**: 本研究提出一种物理约束增强的离线强化学习框架，通过在策略价值函数中引入流体力学与能量守恒项作为正则化项，有效抑制因数据偏差导致的不可行动作输出。其核心在于构建一个包含海洋环境场（风浪流）、船舶动力学与能耗模型的仿真世界模型，使策略在离线训练阶段即可学习到满足物理规律的长期航行路径。虽然应用场景为航运，但其技术本质聚焦于“世界模型”的构建与“具身策略”的鲁棒性优化，强调多模态数据融合（气象、航迹、能耗）与跨具身任务迁移能力，符合“具身缩放定律”与“多模态融合注意力”研究范式，具备向通用具身系统迁移潜力。
+- **领域归类**: World Modeling, Embodied Scaling Laws, Multimodal Fusion Attention
+---
+### 12. 🔥 BEV-SLD: Self-Supervised Scene Landmark Detection for Global Localization with LiDAR Bird's-Eye View Images (基于鸟瞰图激光雷达的自监督场景地标检测用于全局定位)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.17159)
+- **核心亮点**: 首创基于鸟瞰图激光雷达的自监督场景地标检测方法，实现无需标注的全局定位。
+- **深度解析**: 该工作提出一种基于对比学习与几何一致性约束的自监督框架，利用多视角鸟瞰图激光雷达数据自动挖掘稳定场景地标，并建立跨时间序列的不变特征表示。其关键技术在于将点云转换为结构化的BEV图像后，采用双分支编码器学习空间上下文与时间一致性特征，从而在无标签条件下实现高精度全局定位。尽管其原始动机是导航，但其核心贡献在于构建了可泛化、可迁移的“世界模型”表征——即对环境的抽象语义理解能力，且支持多模态融合（点云→图像→位置），并具备跨数据集泛化潜力，符合“跨具身数据集”与“多模态融合注意力”要求，属于具身智能底层认知建模的关键进展。
+- **领域归类**: World Modeling, Cross-Embodied Datasets, Multimodal Fusion Attention
+---
+### 13. 🔥 TrackDeform3D: Markerless and Autonomous 3D Keypoint Tracking and Dataset Collection for Deformable Objects (无标记自主三维关键点追踪与可变形物体数据集构建)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.17068)
+- **核心亮点**: 实现无标记条件下可变形物体的全自动3D关键点追踪与大规模数据集生成。
+- **深度解析**: 本研究提出一种基于神经辐射场与运动一致性约束的端到端可变形物体追踪框架，通过联合优化姿态估计与形状变形模型，在真实场景中实现对柔性物体（如布料、绳索）的连续关键点跟踪。其最大突破在于无需人工标注或外部标记，仅依赖视频与点云输入，即可自动构建高质量、带注释的可变形物体数据集。该工作不仅推动了“世界模型”在复杂形变对象上的建模能力，更开创了自动生成具身数据的新范式，为训练具身智能系统提供大规模、多样化的跨具身数据集支持，直接关联“跨具身数据集”与“具身缩放定律”研究，具备极强的可扩展性与通用性。
+- **领域归类**: Cross-Embodied Datasets, World Modeling, Multimodal Fusion Attention
+---
+### 14. 🔥 Asymmetric Nash Seeking via Best Response Maps: Global Linear Convergence and Robustness to Inexact Reaction Models (基于最优反应图的非对称纳什寻求：全局线性收敛与对不精确反应模型的鲁棒性)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.17058)
+- **核心亮点**: 提出一种新型非对称博弈求解算法，实现多智能体系统中策略的快速收敛与稳定性。
+- **深度解析**: 该工作构建基于最优反应映射（Best Response Map）的分布式优化框架，通过设计非对称梯度更新规则，实现多智能体策略在不确定交互环境下的全局线性收敛。其理论贡献在于证明了在不完全反应模型假设下仍能保持稳定性，这对具身智能系统在复杂社会交互中的行为协调具有重要意义。尽管涉及多智能体，但其核心关注的是“个体策略如何在共享世界模型中动态调整”，属于“世界-动作”联合建模的数学基础支撑，且其对不精确信息的鲁棒性契合“具身缩放定律”中关于噪声与不确定性处理的要求，因此保留于具身智能顶层理论体系。
+- **领域归类**: World-Action Model, Embodied Scaling Laws
+---
+### 15. 🔥 The Port-Hamiltonian Structure of Vehicle Manipulator Systems (车辆机械臂系统的端口-哈密顿结构)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.16882)
+- **核心亮点**: 揭示车辆-机械臂系统内在的端口-哈密顿结构，为统一建模与控制提供理论基础。
+- **深度解析**: 本文从物理系统能量守恒角度出发，建立车辆与机械臂组成的复合系统在端口-哈密顿框架下的统一数学表达，明确其能量交换机制与拓扑结构。这一结构不仅有助于设计能量保持型控制器，更重要的是为构建“世界模型”提供了物理一致性保障——即系统状态演化始终遵循能量守恒与动量传递规律。该理论为后续基于物理先验的深度学习模型（如扩散政策、世界模型）提供了可信的初始化与约束条件，是实现可解释、安全、可泛化的具身智能系统的核心基石。其对多体系统建模的普适性也支持跨具身系统迁移，符合“世界模型”与“具身缩放定律”研究需求。
+- **领域归类**: World Modeling, Embodied Scaling Laws
+---
+### 16. 🔥 L4acados: Learning-based models for acados, applied to Gaussian process-based predictive control (基于acados的学习模型，应用于高斯过程预测控制)
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2411.19258)
+- **核心亮点**: 将学习型模型集成至acados优化框架，加速高斯过程基预测控制的求解效率。
+- **深度解析**: 该工作开发了一套可嵌入标准优化库acados的轻量化学习代理模型，用于替代高斯过程预测控制中的昂贵黑箱计算。通过在训练阶段学习系统动态的低维隐变量表示，实现对复杂非线性动态的快速近似，显著降低在线控制延迟。其核心价值在于将“世界模型”（高斯过程）与“动作生成”（预测控制）紧密结合，形成高效的“世界-动作”闭环系统。该方法支持实时部署，且在训练规模上展现出良好的可扩展性，符合“具身缩放定律”中关于计算效率与模型复杂度之间的权衡原则，同时体现多模态数据融合（输入状态+输出控制）的能力。
+- **领域归类**: World-Action Model, Embodied Scaling Laws, Multimodal Fusion Attention</script>
+            <script>
+                const rawMdElement = document.getElementById('raw-markdown');
+                if (rawMdElement) { document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent); }
+                function copySources() {
+                    const textArea = document.getElementById('sources-text');
+                    textArea.select();
+                    document.execCommand('copy');
+                    alert('已复制链接，请前往 NotebookLM 粘贴');
+                }
+            </script>
+        </body>
+        </html>
+        
