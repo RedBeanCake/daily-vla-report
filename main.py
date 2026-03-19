@@ -30,7 +30,7 @@ def scrape_hf_daily():
         yesterday_str = (utc_now - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
         
         # 1. 获取今天的论文
-        res_today = requests.get(f"https://huggingface.co/api/daily_papers?date={today_str}", headers=headers, timeout=15)
+        res_today = requests.get(f"https://huggingface.co/api/daily_papers?date={today_str}&limit=100", headers=headers, timeout=15)
         papers = res_today.json() if res_today.status_code == 200 else []
         
         # 2. 【核心修复】：判断今天的数据量是否充足。
@@ -38,7 +38,7 @@ def scrape_hf_daily():
         # 我们自动去抓取昨天已经完整积累一整天的数据（即你看到的 52 篇）！
         if not isinstance(papers, list) or len(papers) < 20:
             print(f"Today ({today_str}) only has {len(papers) if isinstance(papers, list) else 0} papers. Fetching yesterday ({yesterday_str})...")
-            res_yesterday = requests.get(f"https://huggingface.co/api/daily_papers?date={yesterday_str}", headers=headers, timeout=15)
+            res_yesterday = requests.get(f"https://huggingface.co/api/daily_papers?date={yesterday_str}&limit=100", headers=headers, timeout=15)
             papers = res_yesterday.json() if res_yesterday.status_code == 200 else []
             
         return papers if isinstance(papers, list) else []
