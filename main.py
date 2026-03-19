@@ -22,32 +22,48 @@ CATEGORIES = ['cs.RO']
 
 def scrape_hf_daily():
     """抓取 Hugging Face Daily Papers 并封装在折叠框内"""
+    # 必须添加 User-Agent，否则会被 HF 的防火墙拦截
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
     try:
         # 调用 HF 官方 API
-        res = requests.get("https://huggingface.co/api/daily_papers", timeout=15)
+        res = requests.get("https://huggingface.co/api/daily_papers", headers=headers, timeout=15)
+        
+        # 检查是否请求成功
+        if res.status_code != 200:
+            print(f"HF API Error: Status {res.status_code}")
+            return ""
+            
         papers_data = res.json()
         
+        # 确保返回的是列表
+        if not isinstance(papers_data, list) or len(papers_data) == 0:
+            print("HF API Warning: No papers found or invalid format")
+            return ""
+        
         # 使用 HTML 标签实现折叠效果
+        # 注意：在 <summary> 和内容之间、内容和 </details> 之间必须有空行，Markdown 才能生效
         hf_md = "<details>\n<summary><b>🤗 Hugging Face Community Choice (点击展开今日热门论文)</b></summary>\n\n"
-        hf_md += "## 🤗 Hugging Face Community Choice\n"
+        hf_md += "## 🤗 Hugging Face Community Choice\n\n"
         
         for idx, entry in enumerate(papers_data, 1):
-            p = entry['paper']
-            upvotes = entry['upvotes']
-            paper_id = p['id']
-            title = p['title']
+            # 安全获取字段，防止 Key 缺失报错
+            p = entry.get('paper', {})
+            upvotes = entry.get('upvotes', 0)
+            paper_id = p.get('id', '')
+            title = p.get('title', 'Unknown Title')
             
-            # 构造内容
+            if not paper_id: continue
+            
             seg = f"### {idx}. [{title}](https://huggingface.co/papers/{paper_id})\n"
             seg += f"- **社区热度**: `👍 {upvotes} Upvotes`\n"
             seg += f"- **论文链接**: [点击跳转](https://arxiv.org/abs/{paper_id})\n"
             seg += "---\n"
             hf_md += seg
             
-        hf_md += "\n</details>"
+        hf_md += "\n</details>\n"
         return hf_md
     except Exception as e:
-        print(f"HF Scrape Error: {e}")
+        print(f"HF Scrape Exception: {e}")
         return ""
         
 def scrape_arxiv(category):
