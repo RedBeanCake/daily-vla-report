@@ -21,49 +21,62 @@ GITHUB_PAGES_URL = f"https://{repo_owner}.github.io/{repo_name}/"
 CATEGORIES = ['cs.RO']
 
 def scrape_hf_daily():
-    """抓取 Hugging Face Daily Papers 并封装在折叠框内"""
-    # 必须添加 User-Agent，否则会被 HF 的防火墙拦截
+    """抓取 Hugging Face Daily Papers 原始数据"""
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
     try:
-        # 调用 HF 官方 API
         res = requests.get("https://huggingface.co/api/daily_papers", headers=headers, timeout=15)
+        if res.status_code != 200: return []
+        return res.json()
+    except Exception as e:
+        print(f"HF Scrape Error: {e}")
+        return []
+
+def process_hf_with_ai(hf_papers):
+    """使用 AI 为 HF 论文生成亮点、解析和归类"""
+    if not hf_papers: return ""
+    
+    # 提取关键信息给 AI
+    simple_list = []
+    for p in hf_papers:
+        simple_list.append({
+            "id": p['paper']['id'],
+            "title": p['paper']['title'],
+            "upvotes": p['upvotes']
+        })
+
+    prompt = f"""你是一个 AI 大模型专家。请为以下 Hugging Face 每日热门论文提供中文解析。
+    
+    要求：
+    1. **不要剔除**任何论文，全部保留。
+    2. 为每篇论文提供：中文标题翻译、核心亮点（一句话）、深度解析（技术方案简述）、领域归类。
+    3. 输出格式如下（Markdown）：
+       ### [编号]. [{{"title"}}] ({{"中文标题"}})
+       - **社区热度**: `👍 {{"upvotes"}} Upvotes`
+       - **论文链接**: [点击跳转](https://arxiv.org/abs/{{"id"}})
+       - **核心亮点**: ...
+       - **深度解析**: ...
+       - **领域归类**: [...]
+       ---
+
+    数据内容：
+    {json.dumps(simple_list)}
+    """
+
+    try:
+        completion = client_llm.chat.completions.create(
+            model="qwen-flash", 
+            messages=[{"role": "user", "content": prompt}]
+        )
+        content = completion.choices[0].message.content
         
-        # 检查是否请求成功
-        if res.status_code != 200:
-            print(f"HF API Error: Status {res.status_code}")
-            return ""
-            
-        papers_data = res.json()
-        
-        # 确保返回的是列表
-        if not isinstance(papers_data, list) or len(papers_data) == 0:
-            print("HF API Warning: No papers found or invalid format")
-            return ""
-        
-        # 使用 HTML 标签实现折叠效果
-        # 注意：在 <summary> 和内容之间、内容和 </details> 之间必须有空行，Markdown 才能生效
-        hf_md = "<details>\n<summary><b>🤗 Hugging Face Community Choice (点击展开今日热门论文)</b></summary>\n\n"
+        # 封装进折叠框
+        hf_md = "<details>\n<summary><b>🤗 Hugging Face Community Choice (点击展开今日热门论文详情)</b></summary>\n\n"
         hf_md += "## 🤗 Hugging Face Community Choice\n\n"
-        
-        for idx, entry in enumerate(papers_data, 1):
-            # 安全获取字段，防止 Key 缺失报错
-            p = entry.get('paper', {})
-            upvotes = entry.get('upvotes', 0)
-            paper_id = p.get('id', '')
-            title = p.get('title', 'Unknown Title')
-            
-            if not paper_id: continue
-            
-            seg = f"### {idx}. [{title}](https://huggingface.co/papers/{paper_id})\n"
-            seg += f"- **社区热度**: `👍 {upvotes} Upvotes`\n"
-            seg += f"- **论文链接**: [点击跳转](https://arxiv.org/abs/{paper_id})\n"
-            seg += "---\n"
-            hf_md += seg
-            
-        hf_md += "\n</details>\n"
+        hf_md += content
+        hf_md += "\n</details>"
         return hf_md
     except Exception as e:
-        print(f"HF Scrape Exception: {e}")
+        print(f"AI Process HF Error: {e}")
         return ""
         
 def scrape_arxiv(category):
@@ -275,8 +288,9 @@ if __name__ == "__main__":
     # 1. 获取 AI 筛选后的 Arxiv 内容
     arxiv_content = process_with_ai(list(all_p.values()))
     
-    # 2. 获取 HF 热门内容
-    hf_content = scrape_hf_daily()
+    # 2. 处理 Hugging Face 部分 (全量总结)
+    hf_raw_data = scrape_hf_daily()
+    hf_content = process_hf_with_ai(hf_raw_data)
     
     # 3. 传入两个部分进行页面生成
     if date_info: 
