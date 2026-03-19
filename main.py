@@ -127,21 +127,21 @@ def scrape_arxiv(category):
     except Exception: return None, 0, []
 
 def process_with_ai(papers):
-    """恢复为直接输出 Markdown 的版本，去掉排序和评分"""
+    """AI筛选，全局打分排序，并仅为高相关度论文添加🔥"""
     if not papers: return ""
-    global_id_counter = 1
-    final_res = []
+    
+    all_filtered_papers = []
     
     for i in range(0, len(papers), 40):
         chunk = papers[i:i+40]
-        prompt = f"""你是一个专注于【大模型具身智能】的顶级研究员。请从以下论文中筛选并编号。
+        prompt = f"""你是一个专注于【大模型具身智能】的顶级研究员。请从以下论文中筛选出符合要求的论文，并为它们打分（1-10分，10分为极度相关）。
 
-        ✅ 必须保留：
+        ✅ 必须保留（相关度 7-10 分）：
         1. VLA (Vision-Language-Action)、World Models (世界模型)、World Modeling、视频生成。
         2. World-Action Model、Video-Action Model、Diffusion Policy。
         3. 具身 Scaling Laws、跨具身数据集、多模态融合注意力。
         
-        🛑 需要剔除：
+        🛑 需要剔除（直接丢弃，不要输出）：
         1. 经典控制(PID, MPC)、硬件/软体/步态研究。
         2. 传统导航、路径规划(A*, RRT)、SLAM、传感器标定。
         3. 垂直场景：深海、巡检、无人机/车、攀爬、医疗/手术机器人。
@@ -149,21 +149,20 @@ def process_with_ai(papers):
         5. 多智能体协同/集群 (Swarm)、离散任务调度。
 
         ⚠️ 输出极其严格限制：
-        1. **禁止**输出任何开场白和总结。
-        2. **仅输出**符合以下格式的论文列表。
-        3. **重要**：每篇论文结束后必须紧跟一个 --- 作为分割线。
+        请**仅输出 JSON 格式的数组**，不要包含任何其他解释文字或 Markdown 标记。格式如下：
+        [
+          {{
+            "id": "论文ID",
+            "title_en": "英文题目",
+            "title_zh": "中文题目翻译",
+            "score": 9,  // 1-10的整数打分
+            "highlight": "一句话核心亮点",
+            "analysis": "一段话技术方案及物理意义解析",
+            "category": "[归类版块]"
+          }}
+        ]
 
-        要求：
-        1. 请从编号 {global_id_counter} 开始连续编号。
-        2. 格式（Markdown）：
-           ### {global_id_counter}. 🔥 [英文题目] (中文题目翻译)
-           - **论文链接**: [点击跳转](https://arxiv.org/abs/{{id}})
-           - **核心亮点**: (一句话创新点)。
-           - **深度解析**: (一段话技术方案、训练规模及物理意义解析)。
-           - **领域归类**: [归类版块]
-           ---
-
-        待处理数据内容：
+        待处理数据：
         {json.dumps(chunk)}
         """
         
@@ -173,10 +172,33 @@ def process_with_ai(papers):
                 messages=[{"role": "user", "content": prompt}]
             )
             res = completion.choices[0].message.content
-            if "###" in res:
-                final_res.append(res.strip())
-                global_id_counter += res.count("###")
-        except Exception: pass
+            # 提取 JSON 数组部分，增强鲁棒性
+            match = re.search(r'\[.*\]', res, re.DOTALL)
+            if match:
+                chunk_res = json.loads(match.group(0))
+                all_filtered_papers.extend(chunk_res)
+        except Exception as e:
+            print(f"AI Parse Error: {e}")
+            pass
+            
+    # 全局排序：按 score 从高到低
+    all_filtered_papers.sort(key=lambda x: x.get('score', 0), reverse=True)
+    
+    # 格式化为 Markdown
+    final_res = []
+    for idx, p in enumerate(all_filtered_papers, 1):
+        score = p.get('score', 0)
+        # 设定阈值：9分及以上才视为“极相关”并添加火标
+        fire_icon = "🔥 " if score >= 9 else "" 
+        
+        md = f"### {idx}. {fire_icon}[{p.get('title_en', 'Unknown')}] ({p.get('title_zh', '')})\n"
+        md += f"- **相关度**: `{score}/10`\n"
+        md += f"- **论文链接**: [点击跳转](https://arxiv.org/abs/{p.get('id', '')})\n"
+        md += f"- **核心亮点**: {p.get('highlight', '')}\n"
+        md += f"- **深度解析**: {p.get('analysis', '')}\n"
+        md += f"- **领域归类**: {p.get('category', '')}\n"
+        md += "---\n"
+        final_res.append(md)
             
     return "\n\n".join(final_res)
 
