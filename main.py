@@ -32,38 +32,39 @@ def scrape_hf_daily():
         return []
 
 def process_hf_with_ai(hf_papers):
-    """使用 AI 为 HF 论文生成亮点、解析和归类"""
+    """使用 AI 为 HF 论文生成亮点、解析和归类，并按点赞数排序"""
     if not hf_papers or not isinstance(hf_papers, list): return ""
     
-    # 提取关键信息给 AI
-    simple_list = []
-    # 提取关键信息给 AI
+    # 1. 提取关键信息给 AI，并进行安全加固
     simple_list = []
     for p in hf_papers:
-        # 安全获取 paper 字典
         paper_info = p.get('paper', {})
         if not paper_info or 'id' not in paper_info:
             continue
             
-        # 【核心修复】：点赞数实际上嵌套在内层的 paper_info 中
-        # 为了绝对安全，我们同时从外层和内层尝试获取
-        upvotes_count = p.get('upvotes') or paper_info.get('upvotes', 0)
+        # 兼容性获取点赞数：尝试从外层或内层获取
+        upvotes_val = p.get('upvotes') or paper_info.get('upvotes', 0)
         
         simple_list.append({
             "id": paper_info.get('id', ''),
             "title": paper_info.get('title', 'Unknown Title'),
-            "upvotes": upvotes_count
+            "upvotes": upvotes_val
         })
 
+    # 2. 【核心修改】：按照点赞数（upvotes）从高到低排序
+    simple_list.sort(key=lambda x: x.get('upvotes', 0), reverse=True)
+
+    # 3. 构造 Prompt，明确要求 AI 保持排序顺序
     prompt = f"""你是一个 AI 大模型专家。请为以下 Hugging Face 每日热门论文提供中文解析。
     
     要求：
     1. **不要剔除**任何论文，全部保留。
-    2. 为每篇论文提供：中文标题翻译、核心亮点（一句话）、深度解析（技术方案简述）、领域归类。
-    3. 输出格式如下（Markdown）：
-       ### [编号]. [{{"title"}}] ({{"中文标题"}})
-       - **社区热度**: `👍 {{"upvotes"}} Upvotes`
-       - **论文链接**: [点击跳转](https://arxiv.org/abs/{{"id"}})
+    2. **严格保持列表给出的顺序**（已经按点赞数从高到低排列），不要打乱。
+    3. 为每篇论文提供：中文标题翻译、核心亮点（一句话）、深度解析（技术方案简述）、领域归类。
+    4. 输出格式如下（Markdown）：
+       ### [编号]. [英文标题] (中文标题翻译)
+       - **社区热度**: `👍 [此处填入对应 upvotes] Upvotes`
+       - **论文链接**: [点击跳转](https://arxiv.org/abs/[此处填入对应 id])
        - **核心亮点**: ...
        - **深度解析**: ...
        - **领域归类**: [...]
@@ -81,7 +82,7 @@ def process_hf_with_ai(hf_papers):
         content = completion.choices[0].message.content
         
         # 封装进折叠框
-        hf_md = "<details>\n<summary><b>🤗 Hugging Face Community Choice (点击展开今日热门论文详情)</b></summary>\n\n"
+        hf_md = "<details>\n<summary><b>🤗 Hugging Face Community Choice (点击展开今日热门详情)</b></summary>\n\n"
         hf_md += "## 🤗 Hugging Face Community Choice\n\n"
         hf_md += content
         hf_md += "\n</details>"
