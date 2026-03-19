@@ -24,7 +24,7 @@ def scrape_hf_daily():
     """抓取 Hugging Face Daily Papers 原始数据"""
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
     try:
-        res = requests.get("https://huggingface.co/api/daily_papers", headers=headers, timeout=15)
+        res = requests.get("https://huggingface.co/api/daily_papers?limit=100", headers=headers, timeout=15)
         if res.status_code != 200: return []
         return res.json()
     except Exception as e:
