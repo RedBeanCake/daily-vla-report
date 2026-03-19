@@ -32,64 +32,68 @@ def scrape_hf_daily():
         return []
 
 def process_hf_with_ai(hf_papers):
-    """使用 AI 为 HF 论文生成亮点、解析和归类，并按点赞数排序"""
+    """分批次调用 AI 处理 HF 论文，彻底解决篇幅限制导致的截断问题"""
     if not hf_papers or not isinstance(hf_papers, list): return ""
     
-    # 1. 提取关键信息给 AI，并进行安全加固
+    # 1. 提取信息并预先按点赞数排序
     simple_list = []
     for p in hf_papers:
         paper_info = p.get('paper', {})
-        if not paper_info or 'id' not in paper_info:
-            continue
-            
-        # 兼容性获取点赞数：尝试从外层或内层获取
+        if not paper_info or 'id' not in paper_info: continue
         upvotes_val = p.get('upvotes') or paper_info.get('upvotes', 0)
-        
         simple_list.append({
             "id": paper_info.get('id', ''),
             "title": paper_info.get('title', 'Unknown Title'),
             "upvotes": upvotes_val
         })
-
-    # 2. 【核心修改】：按照点赞数（upvotes）从高到低排序
     simple_list.sort(key=lambda x: x.get('upvotes', 0), reverse=True)
 
-    # 3. 构造 Prompt，明确要求 AI 保持排序顺序
-    prompt = f"""你是一个 AI 大模型专家。请为以下 Hugging Face 每日热门论文提供中文解析。
+    # 2. 分批处理（建议每批 10-12 篇，保证 AI 输出详尽）
+    chunk_size = 10
+    all_chunks_md = []
+    global_counter = 1
     
-    要求：
-    1. **不要剔除**任何论文，全部保留。
-    2. **严格保持列表给出的顺序**（已经按点赞数从高到低排列），不要打乱。
-    3. 为每篇论文提供：中文标题翻译、核心亮点（一句话）、深度解析（技术方案简述）、领域归类。
-    4. 输出格式如下（Markdown）：
-       ### [编号]. [英文标题] (中文标题翻译)
-       - **社区热度**: `👍 [此处填入对应 upvotes] Upvotes`
-       - **论文链接**: [点击跳转](https://arxiv.org/abs/[此处填入对应 id])
-       - **核心亮点**: ...
-       - **深度解析**: ...
-       - **领域归类**: [...]
-       ---
-
-    数据内容：
-    {json.dumps(simple_list)}
-    """
-
-    try:
-        completion = client_llm.chat.completions.create(
-            model="qwen-flash", 
-            messages=[{"role": "user", "content": prompt}]
-        )
-        content = completion.choices[0].message.content
+    for i in range(0, len(simple_list), chunk_size):
+        chunk = simple_list[i : i + chunk_size]
         
-        # 封装进折叠框
-        hf_md = "<details>\n<summary><b>🤗 Hugging Face Community Choice (点击展开今日热门详情)</b></summary>\n\n"
-        hf_md += "## 🤗 Hugging Face Community Choice\n\n"
-        hf_md += content
-        hf_md += "\n</details>"
-        return hf_md
-    except Exception as e:
-        print(f"AI Process HF Error: {e}")
-        return ""
+        prompt = f"""你是一个 AI 大模型专家。请为以下 Hugging Face 热门论文提供深度中文解析。
+        要求：
+        1. **不要剔除**任何论文，全部保留并翻译。
+        2. 请从编号 {global_counter} 开始连续编号。
+        3. 为每篇论文提供：中文标题翻译、核心亮点（一句话）、深度解析（技术方案简述）、领域归类。
+        4. 输出格式（Markdown）：
+           ### {global_counter}. [英文标题] (中文标题翻译)
+           - **社区热度**: `👍 [对应 upvotes] Upvotes`
+           - **论文链接**: [点击跳转](https://arxiv.org/abs/[对应 id])
+           - **核心亮点**: ...
+           - **深度解析**: ...
+           - **领域归类**: [...]
+           ---
+
+        待处理数据内容：
+        {json.dumps(chunk)}
+        """
+
+        try:
+            completion = client_llm.chat.completions.create(
+                model="qwen-flash", 
+                messages=[{"role": "user", "content": prompt}]
+            )
+            res_content = completion.choices[0].message.content
+            all_chunks_md.append(res_content)
+            # 更新计数器，确保下一批次编号连续
+            global_counter += len(chunk)
+        except Exception as e:
+            print(f"AI Process HF Chunk Error: {e}")
+
+    # 3. 汇总所有批次内容并封装进折叠框
+    full_content = "\n\n".join(all_chunks_md)
+    hf_md = "<details>\n<summary><b>🤗 Hugging Face Community Choice (点击展开今日全部热门详情)</b></summary>\n\n"
+    hf_md += "## 🤗 Hugging Face Community Choice\n\n"
+    hf_md += full_content
+    hf_md += "\n</details>"
+    
+    return hf_md
         
 def scrape_arxiv(category):
     """抓取 Arxiv 数据，并提取日期前缀和总论文数"""
