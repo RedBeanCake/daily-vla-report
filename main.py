@@ -156,23 +156,24 @@ def process_with_ai(papers):
     return "\n\n".join(final_res)
 
 def generate_archive_and_index(date_info, arxiv_content, hf_content=""):
-    """生成详情页并更新索引，HF 内容置顶折叠且不计入 Sources 提取区"""
+    """生成详情页并更新索引，标题分开统计，且索引页按日期倒序排列"""
     
-    # 1. 拼接最终显示的完整内容（HF 在前，Arxiv 在后）
-    full_display_content = hf_content + "\n\n" + (arxiv_content or "")
+    # 1. 分别统计数量
+    hf_count = hf_content.count("###")
+    vla_count = (arxiv_content or "").count("###")
     
-    # 2. 统计总篇数（包含 HF 和筛选后的 Arxiv）
-    count = full_display_content.count("###")
-    display_title = f"{date_info['prefix']} (showing {count} of {date_info['total']} entries)"
+    # 2. 构造详情页标题 (例如: Thu, 19 Mar 2026 (HF: 10, VLA: 6 of 48 entries))
+    display_title = f"{date_info['prefix']} (HF: {hf_count}, VLA: {vla_count} of {date_info['total']} entries)"
     
     safe_date_filename = re.sub(r'[^\w\s-]', '', date_info['prefix']).replace(' ', '_')
     os.makedirs('archive', exist_ok=True)
     daily_file_path = f"archive/{safe_date_filename}.html"
 
-    # 3. 【关键修改】仅从 arxiv_content 中提取 ID，确保 Sources 区纯净
+    # 3. 提取 Arxiv ID 用于 Sources 集合区
     paper_ids = re.findall(r'abs/(\d+\.\d+)', arxiv_content)
     sources_text = "\n".join([f"https://arxiv.org/html/{pid}" for pid in paper_ids])
 
+    # --- HTML 模板定义 ---
     def get_html_template(title, body_content, is_index_page=False, sources_block=""):
         back_link = "<a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>" if not is_index_page else ""
         safe_body = body_content.replace('</script>', '<\\/script>')
@@ -192,7 +193,6 @@ def generate_archive_and_index(date_info, arxiv_content, hf_content=""):
                 .sources-box {{ margin-top: 50px; padding: 20px; background: #f6f8fa; border: 1px dashed #d0d7de; border-radius: 10px; }}
                 .sources-box textarea {{ width: 100%; height: 100px; margin: 10px 0; padding: 10px; font-family: monospace; font-size: 12px; border: 1px solid #d0d7de; border-radius: 6px; resize: none; }}
                 .copy-btn {{ background-color: #2da44e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }}
-                /* 新增：折叠框样式优化 */
                 details {{ margin-bottom: 20px; padding: 15px; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; }}
                 summary {{ cursor: pointer; font-size: 16px; font-weight: bold; color: #0969da; }}
             </style>
@@ -221,18 +221,23 @@ def generate_archive_and_index(date_info, arxiv_content, hf_content=""):
     if sources_text:
         sources_html = f"""
         <div class="sources-box">
-            <h3>🔗 NotebookLM Sources 集合区 (仅 Arxiv 筛选共 {len(paper_ids)} 篇)</h3>
+            <h3>🔗 NotebookLM Sources 集合区 (仅 VLA 筛选共 {len(paper_ids)} 篇)</h3>
             <textarea id="sources-text" readonly>{sources_text}</textarea>
-            <button class="copy-btn" onclick="copySources()">📋 复制 Arxiv 来源链接</button>
+            <button class="copy-btn" onclick="copySources()">📋 复制所有来源链接</button>
         </div>
         """
 
-    # 4. 【关键修改】写入文件时使用全量内容 full_display_content
+    # 保存今日详情页
+    full_display_content = hf_content + "\n\n" + (arxiv_content or "")
     with open(daily_file_path, "w", encoding="utf-8") as f:
         f.write(get_html_template(f"🤖 具身大模型简报 - {display_title}", full_display_content, False, sources_html))
 
-    # 更新索引页（逻辑保持不变）
-    history_files = sorted([f for f in os.listdir('archive') if f.endswith('.html')], reverse=True)
+    # --- 关键修改：优化索引页排序 ---
+    history_files = [f for f in os.listdir('archive') if f.endswith('.html')]
+    
+    # 按照文件修改时间排序（最新创建的在最前），这样即使文件名不规范也能准确排序
+    history_files.sort(key=lambda x: os.path.getmtime(os.path.join('archive', x)), reverse=True)
+
     index_md = "### 📅 历史存档列表\n\n"
     for f_name in history_files:
         try:
@@ -247,13 +252,13 @@ def generate_archive_and_index(date_info, arxiv_content, hf_content=""):
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(get_html_template("📚 具身大模型科研日报 - 历史索引", index_md, True))
 
-    # 推送飞书（使用 full_display_content 的 count）
+    # 推送飞书
     requests.post(FEISHU_WEBHOOK, json={
         "msg_type": "interactive",
         "card": {
             "header": {"title": {"tag": "plain_text", "content": f"🌟 具身精选 | {display_title}"}, "template": "blue"},
             "elements": [
-                {"tag": "div", "text": {"tag": "lark_md", "content": f"今日共精选 **{count}** 篇论文（含 HF 热门）。"}},
+                {"tag": "div", "text": {"tag": "lark_md", "content": f"今日共包含 **{hf_count}** 篇 HF 热门及 **{vla_count}** 篇 VLA 筛选论文。"}},
                 {"tag": "action", "actions": [{"tag": "button", "text": {"tag": "plain_text", "content": "🌐 查看网页 & 复制 Notebook 链接"}, "type": "primary", "url": GITHUB_PAGES_URL}]}
             ]
         }
