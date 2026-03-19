@@ -33,15 +33,21 @@ def scrape_hf_daily():
 
 def process_hf_with_ai(hf_papers):
     """使用 AI 为 HF 论文生成亮点、解析和归类"""
-    if not hf_papers: return ""
+    if not hf_papers or not isinstance(hf_papers, list): return ""
     
     # 提取关键信息给 AI
     simple_list = []
     for p in hf_papers:
+        # 安全获取 paper 字典，防止整体结构异常
+        paper_info = p.get('paper', {})
+        if not paper_info or 'id' not in paper_info:
+            continue
+            
         simple_list.append({
-            "id": p['paper']['id'],
-            "title": p['paper']['title'],
-            "upvotes": p['upvotes']
+            "id": paper_info.get('id', ''),
+            "title": paper_info.get('title', 'Unknown Title'),
+            # 核心修复：使用 .get()，如果找不到 'upvotes' 键就默认设为 0
+            "upvotes": p.get('upvotes', 0) 
         })
 
     prompt = f"""你是一个 AI 大模型专家。请为以下 Hugging Face 每日热门论文提供中文解析。
