@@ -1,0 +1,84 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+            <title>🤖 具身大模型简报 - Mon, 23 Mar 2026 (HF: 0, VLA: 4 of 38 entries)</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <style>
+                html, body { -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+                .sources-box { margin-top: 50px; padding: 20px; background: #f6f8fa; border: 1px dashed #d0d7de; border-radius: 10px; }
+                .sources-box textarea { width: 100%; height: 100px; margin: 10px 0; padding: 10px; font-family: monospace; font-size: 12px; border: 1px solid #d0d7de; border-radius: 6px; resize: none; }
+                .copy-btn { background-color: #2da44e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+                details { margin-bottom: 20px; padding: 15px; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; }
+                summary { cursor: pointer; font-size: 16px; font-weight: bold; color: #0969da; }
+            </style>
+        </head>
+        <body class="markdown-body">
+            <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
+            <h1>🤖 具身大模型简报 - Mon, 23 Mar 2026 (HF: 0, VLA: 4 of 38 entries)</h1>
+            <div id="content"></div>
+            
+        <div class="sources-box">
+            <h3>🔗 NotebookLM Sources 集合区 (仅 VLA 筛选共 4 篇)</h3>
+            <textarea id="sources-text" readonly>https://arxiv.org/html/2603.19370
+https://arxiv.org/html/2603.20164
+https://arxiv.org/html/2603.19305
+https://arxiv.org/html/2603.20182</textarea>
+            <button class="copy-btn" onclick="copySources()">📋 复制所有来源链接</button>
+        </div>
+        
+            <script type="text/markdown" id="raw-markdown">
+
+### 1. 🔥 [VAMPO: Policy Optimization for Improving Visual Dynamics in Video Action Models] (VAMPO：提升视频动作模型中视觉动态性的策略优化)
+- **相关度**: `10/10`
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.19370)
+- **核心亮点**: 首次将强化学习与视频生成模型结合，实现视觉动态与动作策略的联合优化
+- **深度解析**: VAMPO提出一个端到端的视频动作模型训练框架，通过策略优化直接增强视频生成中物理一致性与动作合理性。其核心创新在于将动作策略学习嵌入到视频生成的潜在空间中，利用扩散模型生成高质量动作轨迹，并通过奖励函数引导视觉动态符合真实物理规律。该方法本质上是视频-动作模型与扩散策略（Diffusion Policy）的深度融合，具备显著的世界建模能力，同时支持跨具身数据集的泛化，完全满足具身智能的核心技术要求。
+- **领域归类**: Video-Action Model & Diffusion Policy
+---
+
+
+### 2. 🔥 [The Robot's Inner Critic: Self-Refinement of Social Behaviors through VLM-based Replanning] (机器人的内在批评者：基于视觉语言模型的社交行为自修正重规划)
+- **相关度**: `9/10`
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.20164)
+- **核心亮点**: 首次引入视觉语言模型（VLM）作为机器人自我反思机制，实现社交行为的在线优化
+- **深度解析**: 该工作构建了一个具有内省能力的具身系统，利用视觉语言模型对自身行为进行评估与再规划。其核心是将人类社会规范编码为可学习的语义约束，并通过对比真实行为与理想行为之间的差异，实现持续的策略改进。这不仅实现了多模态融合注意力（视觉+语言）的深度应用，更开创性地将‘世界-行为’反馈循环引入具身智能，符合世界模型与视频-动作建模的交叉趋势，尤其契合具身尺度定律中的认知演化维度。
+- **领域归类**: VLA & World Modeling
+---
+
+
+### 3. 🔥 [PhyGile: Physics-Prefix Guided Motion Generation for Agile General Humanoid Motion Tracking] (PhyGile：基于物理前缀引导的敏捷通用人形运动追踪生成)
+- **相关度**: `9/10`
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.19305)
+- **核心亮点**: 引入物理先验作为条件信号，实现高保真、强鲁棒的人形运动生成
+- **深度解析**: PhyGile提出一种基于物理前缀（Physics-Prefix）的运动生成范式，将动力学约束作为输入嵌入到视频动作模型中，从而生成符合物理规律的连续动作序列。该方法有效解决了传统视频生成中动作失真、违反牛顿力学的问题，属于典型的“世界-动作”联合建模路径。其使用多模态融合注意力处理视觉-动作-物理信息流，且具备跨身体形态迁移潜力，契合具身缩放定律与世界模型研究方向。
+- **领域归类**: World-Action Model & Multi-modal Fusion
+---
+
+
+### 4. [IndoorR2X: Indoor Robot-to-Everything Coordination with LLM-Driven Planning] (室内机器人与万物协同：基于大语言模型的规划)
+- **相关度**: `8/10`
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.20182)
+- **核心亮点**: 首次将大语言模型用于室内多实体协同决策，实现跨模态任务理解与动作生成
+- **深度解析**: 该论文提出一种基于大语言模型（LLM）驱动的室内机器人协同框架，通过语义理解与上下文推理实现机器人与环境物体、人之间的动态协调。其核心在于利用LLM作为高层规划器，将自然语言指令转化为可执行的动作序列，并结合视觉-语言-动作（VLA）架构进行实时策略优化。该方法突破了传统符号逻辑规划在复杂场景下的表达瓶颈，体现了具身智能中‘认知-行动’闭环的关键演进，符合世界模型与多模态融合注意力的前沿方向。
+- **领域归类**: VLA & World Modeling
+---
+</script>
+            <script>
+                const rawMdElement = document.getElementById('raw-markdown');
+                if (rawMdElement) { document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent); }
+                function copySources() {
+                    const textArea = document.getElementById('sources-text');
+                    textArea.select();
+                    document.execCommand('copy');
+                    alert('已复制链接，请前往 NotebookLM 粘贴');
+                }
+            </script>
+        </body>
+        </html>
+        
