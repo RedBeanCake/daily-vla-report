@@ -4,7 +4,7 @@
         <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-            <title>🤖 具身大模型简报 - Mon, 30 Mar 2026 (HF: 0, VLA: 7 of 29 entries)</title>
+            <title>🤖 具身大模型简报 - Mon, 30 Mar 2026 (HF: 0, VLA: 8 of 29 entries)</title>
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
             <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
             <style>
@@ -20,83 +20,93 @@
         </head>
         <body class="markdown-body">
             <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
-            <h1>🤖 具身大模型简报 - Mon, 30 Mar 2026 (HF: 0, VLA: 7 of 29 entries)</h1>
+            <h1>🤖 具身大模型简报 - Mon, 30 Mar 2026 (HF: 0, VLA: 8 of 29 entries)</h1>
             <div id="content"></div>
             
         <div class="sources-box">
-            <h3>🔗 NotebookLM Sources 集合区 (仅 VLA 筛选共 7 篇)</h3>
+            <h3>🔗 NotebookLM Sources 集合区 (仅 VLA 筛选共 8 篇)</h3>
             <textarea id="sources-text" readonly>https://arxiv.org/html/2603.26666
 https://arxiv.org/html/2603.26322
 https://arxiv.org/html/2603.26320
 https://arxiv.org/html/2603.25981
+https://arxiv.org/html/2603.25766
 https://arxiv.org/html/2603.25937
 https://arxiv.org/html/2603.25903
-https://arxiv.org/html/2603.26347</textarea>
+https://arxiv.org/html/2603.26360</textarea>
             <button class="copy-btn" onclick="copySources()">📋 复制所有来源链接</button>
         </div>
         
             <script type="text/markdown" id="raw-markdown">
 
-### 1. 🔥 [VLA-OPD: Bridging Offline SFT and Online RL for Vision-Language-Action Models via On-Policy Distillation] (VLA-OPD：通过在线策略蒸馏连接离线SFT与在线RL的视觉语言动作模型)
+### 1. 🔥 [VLA-OPD: Bridging Offline SFT and Online RL for Vision-Language-Action Models via On-Policy Distillation] (VLA-OPD：通过在线策略蒸馏连接离线SFT与在线RL的视觉-语言-动作模型)
 - **相关度**: `10/10`
 - **论文链接**: [点击跳转](https://arxiv.org/abs/2603.26666)
-- **核心亮点**: 提出一种基于在线策略蒸馏的VLA训练框架，有效融合离线监督微调与在线强化学习优势。
-- **深度解析**: 该论文提出VLA-OPD，通过在在线强化学习过程中引入策略蒸馏机制，将离线监督微调（SFT）阶段学到的知识逐步迁移至在线策略优化中。其核心在于设计了一种动态的、基于策略一致性的蒸馏目标，使模型在持续交互中保持语义一致性与动作准确性。这一方法显著提升了视觉-语言-动作模型在复杂任务中的泛化能力与训练效率，是当前具身智能中实现高效、稳定策略学习的关键进展，直接契合世界模型与多模态融合注意力的核心需求。
+- **核心亮点**: 提出一种基于在线策略蒸馏的VLA训练框架，实现离线监督微调与在线强化学习的高效融合。
+- **深度解析**: 该工作针对视觉-语言-动作（VLA）模型在离线监督微调（SFT）与在线强化学习（RL）之间的训练鸿沟，提出VLA-OPD方法，利用在线策略蒸馏机制将在线探索中的高价值经验逐步注入到预训练的VLA中。其核心在于设计可微分的策略蒸馏损失，使模型在保持语言理解能力的同时，动态优化动作生成策略。该方法显著提升了在复杂具身任务中的泛化性和实时响应能力，为构建具备持续学习能力的具身智能系统提供了关键范式。
 - **领域归类**: VLA & World Modeling
 ---
 
 
-### 2. 🔥 [DiffusionAnything: End-to-End In-context Diffusion Learning for Unified Navigation and Pre-Grasp Motion] (DiffusionAnything：面向统一导航与预抓取运动的端到端上下文扩散学习)
+### 2. 🔥 [DiffusionAnything: End-to-End In-context Diffusion Learning for Unified Navigation and Pre-Grasp Motion] (DiffusionAnything：面向统一导航与预抓取动作的上下文内扩散学习)
 - **相关度**: `10/10`
 - **论文链接**: [点击跳转](https://arxiv.org/abs/2603.26322)
-- **核心亮点**: 首次实现基于扩散模型的统一导航与预抓取动作生成，支持零样本上下文学习。
-- **深度解析**: DiffusionAnything提出一种端到端的扩散策略框架，将视觉输入与语言指令联合建模为高维动作空间的条件扩散过程，实现从导航路径规划到预抓取姿态生成的无缝衔接。其创新点在于利用上下文感知的扩散过程，在无需显式标注的情况下完成跨任务动作生成。这不仅体现了对视频生成与世界模型的深度建模能力，更通过多模态融合注意力机制实现了语言、视觉与动作之间的深层对齐，是具身智能中迈向通用行为生成的重要一步。
+- **核心亮点**: 首次实现端到端的扩散模型驱动的具身任务规划，支持导航与预抓取动作联合生成。
+- **深度解析**: DiffusionAnything提出一种基于扩散模型的统一动作生成框架，将视觉输入、语言指令与环境状态编码为条件信号，直接生成从导航路径到预抓取姿态的连续动作序列。其创新点在于引入了上下文感知的扩散过程，使模型能够根据当前场景动态调整动作轨迹，实现跨任务的零样本迁移。该方法突破了传统模块化规划的局限性，为具身智能体提供了一种高度一致且鲁棒的决策机制，是扩散政策在具身任务中的重要进展。
 - **领域归类**: Diffusion Policy & Video-Action Model
 ---
 
 
-### 3. 🔥 [DFM-VLA: Iterative Action Refinement for Robot Manipulation via Discrete Flow Matching] (DFM-VLA：基于离散流匹配的机器人操作迭代动作精炼)
+### 3. 🔥 [DFM-VLA: Iterative Action Refinement for Robot Manipulation via Discrete Flow Matching] (DFM-VLA：基于离散流匹配的机器人操作迭代动作优化)
 - **相关度**: `9/10`
 - **论文链接**: [点击跳转](https://arxiv.org/abs/2603.26320)
-- **核心亮点**: 采用离散流匹配机制实现视觉语言动作模型的逐步动作优化，提升操作鲁棒性。
-- **深度解析**: DFM-VLA提出一种基于离散流匹配的迭代动作精炼框架，将机器人操作视为一个可逆的、分步修正的动作演化过程。通过构建离散动作空间中的概率流模型，模型能够从初始粗略动作预测出发，逐步迭代优化至精确执行状态。该方法天然具备良好的可解释性与稳定性，特别适用于复杂抓取与精细操作任务。其核心在于将扩散思想引入动作空间建模，形成具有物理意义的动作演化轨迹，是具身智能中实现高精度动作控制的前沿范式。
-- **领域归类**: World-Action Model & Diffusion Policy
+- **核心亮点**: 利用离散流匹配实现对视觉-语言-动作模型的多步动作精炼，提升操作精度与成功率。
+- **深度解析**: DFM-VLA提出一种基于离散流匹配（Discrete Flow Matching）的迭代动作修正机制，用于优化原始VLA输出的动作序列。该方法通过在动作空间中建模概率流，逐步修正低置信度或错误动作，从而提升复杂操作任务如物体抓取、堆叠等的完成率。其技术意义在于将流匹配理论成功应用于离散动作空间，实现了动作生成的可解释性与可控性增强，是当前最具潜力的具身动作精细化方法之一。
+- **领域归类**: World-Action Model & VLA
 ---
 
 
-### 4. 🔥 [Policy-Guided World Model Planning for Language-Conditioned Visual Navigation] (基于策略引导的世界模型规划用于语言条件视觉导航)
+### 4. 🔥 [Policy-Guided World Model Planning for Language-Conditioned Visual Navigation] (语言条件视觉导航中的策略引导世界模型规划)
 - **相关度**: `9/10`
 - **论文链接**: [点击跳转](https://arxiv.org/abs/2603.25981)
-- **核心亮点**: 结合世界模型与策略指导，实现语言驱动的视觉导航中长距离规划。
-- **深度解析**: 该工作构建了一个语言条件下的视觉导航系统，其中世界模型负责预测环境动态演化，而策略网络则提供动作选择的引导信号，形成闭环反馈。通过将语言指令嵌入世界模型的潜在表示中，并以策略为中介进行动作规划，系统可在未见过的环境中实现跨场景导航。该方案体现了对世界模型与多模态融合注意力的深度融合，尤其在处理模糊指令和部分可观测环境方面表现出强鲁棒性，是具身智能中实现高层意图理解与底层动作协调的典范。
-- **领域归类**: World Models & VLA
+- **核心亮点**: 将语言指令嵌入世界模型预测，结合策略引导实现高效视觉导航。
+- **深度解析**: 该论文构建了一个语言条件的世界模型，能够基于语言指令生成未来状态的高维视频预测，并通过策略网络指导搜索最优路径。其核心在于建立语言-视觉-动作之间的跨模态一致性约束，使世界模型不仅预测物理演化，还与任务目标对齐。该方法显著提升了在未见过环境中的导航鲁棒性与语义理解能力，体现了世界模型与策略协同演化的先进方向。
+- **领域归类**: World Modeling & VLA
 ---
 
 
-### 5. [Can Vision Foundation Models Navigate? Zero-Shot Real-World Evaluation and Lessons Learned] (视觉基础模型能导航吗？零样本真实世界评估与经验总结)
+### 5. 🔥 [ETA-VLA: Efficient Token Adaptation via Temporal Fusion and Intra-LLM Sparsification for Vision-Language-Action Models] (ETA-VLA：通过时间融合与内部大模型稀疏化实现高效的令牌适配)
+- **相关度**: `9/10`
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.25766)
+- **核心亮点**: 提出一种高效的时间融合与模型稀疏化机制，显著降低VLA推理成本。
+- **深度解析**: ETA-VLA针对多模态序列处理中的计算冗余问题，设计了时间维度上的动态特征融合模块与大语言模型内部的稀疏注意力机制。通过仅激活关键时间步与相关注意力头，大幅减少计算量，同时保持对长序列的敏感性。该方法在不牺牲任务性能的前提下，使VLA模型可在边缘设备上实现接近实时的推理，是实现大规模具身智能部署的重要技术突破。
+- **领域归类**: Multimodal Fusion Attention & Scaling Laws
+---
+
+
+### 6. [Can Vision Foundation Models Navigate? Zero-Shot Real-World Evaluation and Lessons Learned] (视觉基础模型能导航吗？零样本真实世界评估与经验总结)
 - **相关度**: `8/10`
 - **论文链接**: [点击跳转](https://arxiv.org/abs/2603.25937)
-- **核心亮点**: 首次对大规模视觉基础模型在真实世界导航任务中进行零样本评估，揭示其局限性与潜力。
-- **深度解析**: 本文系统评估了多个主流视觉基础模型（如CLIP、BEiT、ViT）在真实世界视觉导航任务中的表现，采用零样本方式测试其跨域泛化能力。研究发现尽管这些模型具备强大的表征能力，但在缺乏具体任务上下文与动作反馈时难以生成有效导航策略。然而，其在语义理解与空间关系建模方面的优势为构建具身世界模型提供了重要启示。该工作虽非直接提出新架构，但为后续具身智能中视觉-语言-动作对齐提供了关键实证依据，属于具身智能理论验证层面的重要贡献。
-- **领域归类**: VLA & World Modeling
+- **核心亮点**: 首次对大规模视觉基础模型在真实世界导航任务中进行零样本评估，揭示其具身适应瓶颈。
+- **深度解析**: 该研究系统评估了多个视觉基础模型（如CLIP、SigLIP）在真实机器人环境中执行语言条件导航任务的能力，采用零样本迁移方式验证其泛化性能。结果表明尽管模型具备强大的图像-语言对齐能力，但在时空推理、动态障碍规避和长程规划方面仍存在明显缺陷。研究揭示了当前视觉基础模型在具身任务中“知觉强但行为弱”的本质问题，为后续开发融合世界模型与动作策略的具身系统提供了关键基准与改进方向。
+- **领域归类**: World Modeling & Cross-Embodied Datasets
 ---
 
 
-### 6. [Emergent Neural Automaton Policies: Learning Symbolic Structure from Visuomotor Trajectories] (涌现神经自动机策略：从视觉运动轨迹中学习符号结构)
+### 7. [Emergent Neural Automaton Policies: Learning Symbolic Structure from Visuomotor Trajectories] (涌现神经自动机策略：从视觉运动轨迹中学习符号结构)
 - **相关度**: `8/10`
 - **论文链接**: [点击跳转](https://arxiv.org/abs/2603.25903)
-- **核心亮点**: 从连续轨迹中自动提取符号化动作逻辑，实现可解释的具身策略学习。
-- **深度解析**: 该论文提出一种新型神经自动机框架，通过分析大量视觉-运动轨迹数据，自动识别出隐含的符号化动作规则（如‘先移动后旋转’），并将其编码为可解释的状态转移网络。这种机制使得模型不仅能完成特定任务，还能泛化到未见组合任务中，展现出类人类的抽象推理能力。其本质是对世界模型中动态规律的建模，同时引入了跨具身数据集的学习范式，强调多模态融合注意力在结构化知识提取中的作用，是通向具身智能通用认知的重要探索。
-- **领域归类**: World Modeling & Cross-Embodied Data
+- **核心亮点**: 从具身轨迹中自动发现隐含的符号规则，构建可解释的神经自动机策略。
+- **深度解析**: 该工作提出一种基于轨迹数据的符号结构发现机制，通过聚类与递归模式识别，从大量视觉-动作序列中提取出潜在的逻辑规则（如‘先移动再抓取’），并将其编码为神经自动机（Neural Automaton）策略。该方法实现了从纯数据驱动到部分符号化表示的跃迁，增强了模型在未知任务中的可解释性与可组合性，是迈向具身智能中认知结构自组织的重要一步。
+- **领域归类**: Multimodal Fusion Attention & Scaling Laws
 ---
 
 
-### 7. [Optimal Prioritized Dissipation and Closed-Form Damping Limitation under Actuator Constraints for Haptic Interfaces] (面向触觉接口的最优优先耗散与闭式阻尼限制在执行器约束下的研究)
-- **相关度**: `6/10`
-- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.26347)
-- **核心亮点**: 研究执行器约束下的阻尼特性，但聚焦于触觉反馈而非具身决策。
-- **深度解析**: 该工作关注的是触觉接口中动力学系统的能量耗散优化问题，虽涉及动作执行与物理约束建模，但其核心是力反馈系统的设计与稳定性分析，属于传统控制范畴。虽然触及“动作”与“物理”的关联，但并未涉及视觉-语言-动作联合建模、世界模型或具身策略学习，因此不符合具身智能核心要求，仅因提及动作约束而勉强保留，但相关度偏低。
-- **领域归类**: Cross-Embodied Data
+### 8. [Realtime-VLA V2: Learning to Run VLAs Fast, Smooth, and Accurate] (实时VLA V2：学习快速、平滑且准确地运行视觉-语言-动作模型)
+- **相关度**: `8/10`
+- **论文链接**: [点击跳转](https://arxiv.org/abs/2603.26360)
+- **核心亮点**: 针对VLA推理延迟问题，提出轻量化架构与动态计算调度策略，实现毫秒级响应。
+- **深度解析**: Realtime-VLA V2聚焦于视觉-语言-动作模型在真实机器人平台上的实时部署挑战，提出基于动态计算资源分配与注意力稀疏化的加速框架。通过引入帧间一致性约束与预测校正机制，保证在降低计算开销的同时维持动作平滑性与准确性。该工作解决了具身智能系统落地的关键瓶颈——推理延迟，为大规模部署具身大模型提供了工程可行性方案。
+- **领域归类**: VLA & World Modeling
 ---
 </script>
             <script>
