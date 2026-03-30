@@ -298,22 +298,29 @@ def generate_archive_and_index(date_info, arxiv_content, hf_content=""):
     with open(daily_file_path, "w", encoding="utf-8") as f:
         f.write(get_html_template(f"🤖 具身大模型简报 - {display_title}", full_display_content, False, sources_html))
 
-    # --- 关键修改：优化索引页排序 ---
+    # --- 修复后的排序逻辑：从标题解析日期进行语义排序 ---
     history_files = [f for f in os.listdir('archive') if f.endswith('.html')]
     
-    # 按照文件修改时间排序（最新创建的在最前），这样即使文件名不规范也能准确排序
-    history_files.sort(key=lambda x: os.path.getmtime(os.path.join('archive', x)), reverse=True)
-
-    index_md = "### 📅 历史存档列表\n\n"
+    indexed_history = []
     for f_name in history_files:
         try:
             with open(f"archive/{f_name}", "r", encoding="utf-8") as hf:
                 file_soup = BeautifulSoup(hf.read(), 'html.parser')
                 full_title = file_soup.title.string.replace("🤖 具身大模型简报 - ", "")
-                index_md += f"- [{full_title}](archive/{f_name})\n"
+                # 匹配日期字符串，例如 "Wed, 25 Mar 2026"
+                date_match = re.search(r'([A-Za-z]{3}, \d{1,2} [A-Za-z]{3} \d{4})', full_title)
+                if date_match:
+                    date_obj = datetime.datetime.strptime(date_match.group(1), "%a, %d %b %Y")
+                    indexed_history.append((date_obj, full_title, f_name))
         except:
-            display_date_item = f_name.replace('.html', '').replace('_', ' ')
-            index_md += f"- [{display_date_item}](archive/{f_name})\n"
+            continue
+
+    # 按照日期对象倒序排列
+    indexed_history.sort(key=lambda x: x[0], reverse=True)
+
+    index_md = "### 📅 历史存档列表\n\n"
+    for _, display_title, f_name in indexed_history:
+        index_md += f"- [{display_title}](archive/{f_name})\n"
     
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(get_html_template("📚 具身大模型科研日报 - 历史索引", index_md, True))
