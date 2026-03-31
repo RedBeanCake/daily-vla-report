@@ -177,7 +177,7 @@ def process_with_ai(papers):
             "score": 9,  // 1-10的整数打分
             "highlight": "一句话核心亮点",
             "analysis": "一段话技术方案及物理意义解析",
-            "category": "[归类版块]"
+            "institution": "主要作者单位/机构（如 Stanford, DeepMind, 清华大学等）"
           }}
         ]
 
@@ -215,7 +215,7 @@ def process_with_ai(papers):
         md += f"- **论文链接**: [点击跳转](https://arxiv.org/abs/{p.get('id', '')})\n"
         md += f"- **核心亮点**: {p.get('highlight', '')}\n"
         md += f"- **深度解析**: {p.get('analysis', '')}\n"
-        md += f"- **领域归类**: {p.get('category', '')}\n"
+        md += f"- **作者单位**: {p.get('institution', '')}\n"
         md += "---\n"
         final_res.append(md)
             
