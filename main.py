@@ -134,17 +134,17 @@ def process_with_ai(papers):
 
         请严格按以下结构输出（使用 Markdown）：
 
-        **1. 核心逻辑 (The Core "Why")**
+        **1. 整体逻辑**
         - **一句话任务**: [论文研究的任务是什么，如：根据文本生成图像]
         - **一句话本质**: [本质改动，如：用视频生成代替扩散策略做轨迹预测]
         - **技术溯源**: [基于 CLIP/OpenVLA/Llama3 等哪些开源基座？]
 
-        **2. 技术拆解 (The "How")**
+        **2. 技术拆解**
         - **重点改进**: [本质改动对应的模型或算法的改动]
         - **架构细节**: [输入输出、具体的模型结构、模型规模等]
         - **核心 Loss**: [主 Loss 构成，是否有辅助任务（如视频重建）？]
 
-        **3. 实验结果 (The Reality Check)**
+        **3. 实验结果**
         - **数据集**: [实验用的数据集]
         - **评价指标**: [实验用的评价指标，如何评价]
         - **实验结果**: [比baseline好多少]
@@ -163,7 +163,7 @@ def process_with_ai(papers):
             
             score = item.get('score', 0)
             md = f"### {idx}. 🔥 [{item.get('title_en', 'Unknown')}] ({item.get('title_zh', '')})\n"
-            md += f"- **专家评分**: `{score}/10` | **Arxiv**: [点击跳转](https://arxiv.org/abs/{paper_id})\n"
+            md += f"- **专家评分**: `{score}/10` | **Arxiv**: [点击跳转](https://arxiv.org/abs/{paper_id})\n\n"
             md += f"{report}\n"
             md += "---\n"
             final_reports.append(md)
