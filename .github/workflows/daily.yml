@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '0 6 * * 1-5' # 北京时间 14:00
   workflow_dispatch:
+    inputs:
+      paper_ids:
+        description: '输入需要深度解析的 Arxiv ID（多个用逗号分隔，如 2403.xxxx,2403.yyyy）'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -28,6 +33,7 @@ jobs:
 
       - name: Run Scraper
         env:
+          TARGET_IDS: ${{ github.event.inputs.paper_ids }} # 将输入的 ID 传给 Python
           DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
           FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
           GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
