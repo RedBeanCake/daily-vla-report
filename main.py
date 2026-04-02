@@ -56,16 +56,31 @@ def scrape_arxiv(category):
         return {"prefix": date_prefix, "total": total_entries}, len(papers), papers
     except Exception: return None, 0, []
 
+def get_arxiv_full_text(paper_id):
+    """利用 Arxiv HTML 渲染功能抓取正文"""
+    url = f"https://arxiv.org/html/{paper_id}"
+    try:
+        res = requests.get(url, timeout=20)
+        if res.status_code != 200: return None
+        soup = BeautifulSoup(res.text, 'html.parser')
+        # 移除脚本和样式，保留前 30000 字符以防超出大模型上下文
+        for script in soup(["script", "style"]):
+            script.decompose()
+        return soup.get_text()[:30000] 
+    except Exception as e:
+        print(f"抓取全文出错 {paper_id}: {e}")
+        return None
+
 def process_with_ai(papers):
-    """AI筛选，全局打分排序，并仅为高相关度论文添加🔥"""
+    """两阶段处理：先按原始 Prompt 筛选，再读全文深度总结"""
     if not papers: return ""
     
+    # --- 第一阶段：初筛 (完全使用你提供的原始 Prompt 逻辑) ---
     all_filtered_papers = []
-    
     for i in range(0, len(papers), 40):
         chunk = papers[i:i+40]
-        # 保留了你原始文件中的 Prompt
-        prompt = f"""你是一个专注于【大模型具身智能】的顶级研究员。请从以下论文中筛选出符合要求的论文，并为它们打分（1-10分，10分为极度相关）。
+        # 这里嵌入你提供的原始筛选 Prompt
+        filter_prompt = f"""你是一个专注于【大模型具身智能】的顶级研究员。请从以下论文中筛选出符合要求的论文，并为它们打分（1-10分，10分为极度相关）。
 
         ✅ 必须保留（相关度 7-10 分）：
         1. VLA (Vision-Language-Action)、World Models (世界模型)、World Modeling、视频生成。
@@ -80,18 +95,8 @@ def process_with_ai(papers):
         5. 多智能体协同/集群 (Swarm)、离散任务调度。
 
         ⚠️ 输出极其严格限制：
-        请**仅输出 JSON 格式的数组**，不要包含任何其他解释文字或 Markdown 标记。格式如下：
-        [
-          {{
-            "id": "论文ID",
-            "title_en": "英文题目",
-            "title_zh": "中文题目翻译",
-            "score": 9,  // 1-10的整数打分
-            "highlight": "一句话核心亮点",
-            "analysis": "一段话技术方案及物理意义解析"
-          }}
-        ]
-
+        请**仅输出 JSON 格式的数组**，不要包含任何其他解释文字或 Markdown 标记。
+        
         待处理数据：
         {json.dumps(chunk)}
         """
@@ -99,30 +104,74 @@ def process_with_ai(papers):
         try:
             completion = client_llm.chat.completions.create(
                 model="qwen-flash", 
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": filter_prompt}]
             )
             res = completion.choices[0].message.content
             match = re.search(r'\[.*\]', res, re.DOTALL)
             if match:
-                chunk_res = json.loads(match.group(0))
-                all_filtered_papers.extend(chunk_res)
+                all_filtered_papers.extend(json.loads(match.group(0)))
         except Exception: pass
-            
-    all_filtered_papers.sort(key=lambda x: x.get('score', 0), reverse=True)
+
+    # --- 第二阶段：针对高分论文阅读全文并进行专家解析 ---
+    # 筛选出评分 >= 8 的精选论文进行深度“脱水”
+    high_quality_papers = [p for p in all_filtered_papers if p.get('score', 0) >= 8]
+    final_reports = []
     
-    final_res = []
-    for idx, p in enumerate(all_filtered_papers, 1):
-        score = p.get('score', 0)
-        fire_icon = "🔥 " if score >= 9 else "" 
-        md = f"### {idx}. {fire_icon}[{p.get('title_en', 'Unknown')}] ({p.get('title_zh', '')})\n"
-        md += f"- **相关度**: `{score}/10`\n"
-        md += f"- **论文链接**: [点击跳转](https://arxiv.org/abs/{p.get('id', '')})\n"
-        md += f"- **核心亮点**: {p.get('highlight', '')}\n"
-        md += f"- **深度解析**: {p.get('analysis', '')}\n"
-        md += "---\n"
-        final_res.append(md)
+    for idx, item in enumerate(high_quality_papers, 1):
+        paper_id = item['id']
+        full_text = get_arxiv_full_text(paper_id)
+        
+        # 专家深度解析 Prompt（结合你要求的“刻薄、专业”要求）
+        expert_prompt = f"""
+        Role: 你是一位极其挑剔、实战经验丰富的【大模型具身智能】顶级专家。你不仅关注学术指标，更关注代码层面的实现细节和物理世界的落地可能。
+        Task: 请基于提供的论文内容进行深度“脱水”解析。你的回答必须保持客观、刻薄但专业，严格遵循以下结构：
+
+        1. 核心改进定位（去包装化）
+        - 一句话总结：用最直白的话说出这篇论文到底改了什么。
+        - SOTA 溯源：哪些是成熟开源方案，哪些才是作者原创的“Private Sauce”？
+
+        2. 痛点与方法的“因果映射”
+        - 作者宣称的局限性：论文开头吐槽了前人哪些问题？
+        - 技术补丁：针对上述每个问题，作者分别用了什么“技术补丁”？
+        - 有效性质疑：这种对应关系在逻辑上是否自洽？
+
+        3. 硬件与架构深度拆解
+        - 模块参数：详细列出模型的各个组成部分，输入输出等。
+        - 动作生成逻辑：Action Head 是离散 Token 还是连续扩散？是否支持 Action Chunking？
+        - 数据流向闭环：数据从相机采样到推理输出，再到机械臂执行的完整链路。
+        - 损失函数（Loss）：核心 Loss 是什么？
+
+        4. 实战落地评估（工程视角）
+        - 推理性能：能否支持 20Hz 以上的实时闭环控制？
+        - 资源消耗：大概需要什么样的算力规模？
+        - 物理意义：处理“非刚体（如揉搓衣服）”时，是否有专门的归纳偏置设计？
+
+        5. 风险与局限（Critical Catch）
+        - 实验中的“坑”：实验环境是否过于洁净？成功率下降的典型场景是什么？
+        - 潜在风险：如果我把这个架构搬到我的 Franka/RealMan 实验室，最可能在哪个环节出问题？
+
+        待处理全文内容：
+        {full_text if full_text else "（全文抓取失败，请基于摘要进行尽量详尽的分析）"}
+        """
+        
+        try:
+            # 深度解析建议用逻辑更强的模型（如 qwen-plus）
+            completion = client_llm.chat.completions.create(
+                model="qwen-plus", 
+                messages=[{"role": "user", "content": expert_prompt}]
+            )
+            report = completion.choices[0].message.content
             
-    return "\n\n".join(final_res)
+            score = item.get('score', 0)
+            md = f"### {idx}. 🔥 [{item.get('title_en', 'Unknown')}] ({item.get('title_zh', '')})\n"
+            md += f"- **专家评分**: `{score}/10` | **Arxiv**: [点击跳转](https://arxiv.org/abs/{paper_id})\n"
+            md += f"{report}\n"
+            md += "---\n"
+            final_reports.append(md)
+        except Exception as e:
+            print(f"深度解析出错 {paper_id}: {e}")
+            
+    return "\n\n".join(final_reports)
 
 def generate_archive_and_index(date_info, arxiv_content):
     """生成详情页并更新索引，仅统计 VLA 内容"""
