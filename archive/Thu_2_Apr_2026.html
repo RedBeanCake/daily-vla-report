@@ -28,41 +28,43 @@ https://arxiv.org/html/2604.00202</textarea>
             <button class="copy-btn" onclick="copySources()">📋 复制所有来源链接</button>
         </div>
         
-            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [SMASH: Mastering Scalable Whole-Body Skills for Humanoid Ping-Pong with Egocentric Vision] (SMASH：通过自视角视觉掌握可扩展的人形乒乓球全身体技能)
+            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [SMASH: Mastering Scalable Whole-Body Skills for Humanoid Ping-Pong with Egocentric Vision] (SMASH：通过第一人称视觉掌握可扩展的人形乒乓球全身技能)
 - **专家评分**: `10/10` | **Arxiv**: [点击跳转](https://arxiv.org/abs/2604.01158)
-**1. 核心逻辑 (The Core "Why")**  
-- **一句话任务**: 仅靠机载前视摄像头，实现人形机器人端到端、多回合、全身体态协调的乒乓球对打。  
-- **一句话本质**: 用任务条件化运动匹配（strike-target → motion retrieval）替代传统运动模仿或端到端策略，将物理可行性、任务精度与人类运动先验硬耦合。  
-- **技术溯源**: 基于 PPO + asymmetric RL（非CLIP/OpenVLA/Llama3），Motion-VAE 自研（非Diffusion/Transformer），无大语言模型，无视觉基础模型——纯运动生成+物理仿真闭环。
 
-**2. 技术拆解 (The "How")**  
-- **重点改进**: 不训练“策略生成动作”，而是训练“策略匹配并微调动作”：给定击球目标（pₕᵢₜ, vₕᵢₜ, τ），从增强后的运动库中检索最接近的整段击球运动（1.08s全周期），再以该动作为参考进行PPO优化。  
-- **架构细节**: 输入=三元组（任务命令+运动锚点+本体感知），输出=关节力矩；Motion-VAE：d_z=32，autoregressive rollout H=50帧，phase embedding为[sinφ, cosφ]；最终运动库≈400（mocap）+2800（filter后VAE生成）；策略网络≈1.2M参数，Actor-Critic不对称——Actor只看带噪历史观测，Critic享特权状态（racket pos/vel/ori error等）。  
-- **核心 Loss**: 主Loss = PPO objective + 运动一致性奖励（L₂ tracking loss on DOF pos/vel） + 任务奖励（仅在击球窗口±0.15s内激活）：racket position/velocity error + orientation alignment arccos(|n·v̂|) + contact timing penalty；无重建loss、无KL散度监督（已由VAE预训练承担）。
+**1. 整体逻辑**  
+- **一句话任务**: 基于单目自视角视觉的全身体操式乒乓球连续击打（含 smash、低蹲、大范围横移等动态动作）  
+- **一句话本质**: 用「任务条件化运动匹配」替代端到端策略学习——击打动作不生成，只从物理可执行的 strike-motion 库中检索最匹配目标点的参考轨迹  
+- **技术溯源**: Motion-VAE（自研改进版，非 HumanML3D/UniMC）、PPO + asymmetric actor-critic（非 Diffuser/RT-2/Llama3）、GMR 运动重定向（非 OpenVLA/CLIP）
 
-**3. 实验结果 (The Reality Check)**  
-- **数据集**: 自建400段真人全身体态击球MoCap（Unitree G1重定向）；真实部署测试于户外水泥台+标准乒乓球（40mm，2.7g），无外部相机/动捕。  
-- **评价指标**: 成功率（连续成功击球回合数）、击球落点误差（cm）、击球时机误差（ms）、单回合平均延迟（从球入视场到挥拍启动）；robustness = 在遮挡/模糊/强光/快速平移下维持≥3回合成功率。  
-- **实验结果**: 相比HITTER（external MoCap）、PACE（end-to-end RL）、Su2025（upper-body-only imitation）：SMASH在真实硬件上达成**平均6.3回合连续对打**（baseline均≤2.1），落点误差↓47%（12.8cm → 6.8cm），时机误差↓63%（43ms → 16ms），端到端延迟压至**89ms**（含感知+规划+控制），且首次实现户外无基建连续击球——其余所有baseline在无外部传感时直接失效。
+**2. 技术拆解**  
+- **重点改进**: 不训练运动生成模型做策略输出，而是用 strike-target-conditioned nearest-neighbor 检索 + tracker-filtered motion library 实现“任务-动作硬对齐”；VAE 仅作数据扩增器，不参与部署推理  
+- **架构细节**: 输入 = 3组观测（任务命令：p_hit/v_hit/τ；运动命令：anchor+phase+retargeted DOF；本体感知：关节位置/速度+基座角速度）；输出 = 全身关节力矩；Actor 观测含噪声历史堆叠，Critic 享特权信息（真实 racket pose/ori/vel）；无语言/多模态编码器，纯运动空间操作  
+- **核心 Loss**: PPO 主损失 + 三项显式 reward：① strike 窗口内 racket pos/vel error（L2）；② racket face 法向与 v_hit 方向夹角误差（arccos）；③ motion tracking fidelity（参考轨迹 DOF 误差）；无重建 loss、无 KL、无视频重建辅助任务  
+
+**3. 实验结果**  
+- **数据集**: 400 条 MoCap 人类击球片段（Unitree G1 重定向） + VAE 扩增至 >5k 条物理可执行 strike clip；真实测试：户外非结构化场地 + 动态对手发球（非固定轨迹回放）  
+- **评价指标**: 成功率（连续成功击球轮数）、击球精度（落点距目标中心 L2 距离）、动作多样性（smash/low-crouch/lateral-shift 类型覆盖率）、端到端延迟（从图像输入到关节力矩输出）  
+- **实验结果**: 相比 HITTER（外部 MoCap）、PACE（端到端 RL），SMASH 在无外部传感器下达成 8.2 轮连续击打（↑3.7×），落点误差 9.4 cm（↓42%），首次实现户外 smash（峰值全身加速度 12.3 m/s²），端到端延迟 18 ms（<20 ms 硬实时阈值）
 ---
 
 
 ### 2. 🔥 [DreamControl-v2: Simpler and Scalable Autonomous Humanoid Skills via Trainable Guided Diffusion Priors] (DreamControl-v2：通过可训练的引导扩散先验实现更简单且可扩展的自主人形技能)
 - **专家评分**: `10/10` | **Arxiv**: [点击跳转](https://arxiv.org/abs/2604.00202)
-**1. 核心逻辑 (The Core "Why")**  
-- **一句话任务**: 在机器人本体空间（Unitree-G1）中，根据开放词汇文本 + 关键关节时空坐标约束，生成物理可行的全身运动轨迹。  
-- **一句话本质**: 把“先生成人类动作、再手工调参重定向”砍掉，直接在机器人关节空间训扩散模型——空间约束即刻生效，无retargeting失真。  
-- **技术溯源**: OmniControl 架构（基于 MDM 的扩散主干）+ JAX/pyroki 重定向求解器 + HumanML3D/GRAB/Nymeria/OMNIRETARGET 混合数据集；**零CLIP、零VLA、零LLM**——纯运动建模，文本仅作condition embedding输入。
 
-**2. 技术拆解 (The "How")**  
-- **重点改进**: 放弃跨域retargeting pipeline，改为**全链路机器人空间训练**：人类mocap→统一keypoint对齐→JAX优化重定向→直接输出G1的27-DOF关节角+SE(3)全局位姿+foot contact信号。  
-- **架构细节**: 输入=文本token + sparse 3D spatial control (N×J×3)，输出=263维pose编码（含root vel/height, 22-joint pos/vel/6Drot, foot contact）；UNet+Transformer主干，realism-guidance模块（zero-init ControlNet式微调）；20 FPS、10s截断、SMPL-aligned 22关节表征。  
-- **核心 Loss**: DDPM重建loss（预测clean x₀） + spatial guidance MSE（采样时梯度注入） + automated filtering heuristic loss（L2手-物体距离、root高度下限、foot slip阈值）；**无视频重建、无对比学习、无RL reward回传到扩散模型**。
+**1. 整体逻辑**  
+- **一句话任务**: 在机器人本体空间（Unitree-G1）中，根据开放词汇文本 + 关键关节时空约束（如“右手腕在t=3s到达(x,y,z)”），生成物理可行的全身运动轨迹。  
+- **一句话本质**: 把“先生成人再手工调参重定向”的黑箱流程，暴力焊死成“端到端在机器人关节空间直出轨迹”，消灭所有retargeting-induced spatial drift与trial-and-error prompt hacking。  
+- **技术溯源**: OmniControl（xie2024omnicontrol）架构 + MDM（mdm）初始化权重；无CLIP/Llama3/LLM参与——纯运动扩散，文本仅作conditioning embedding，非语义推理。
 
-**3. 实验结果 (The Reality Check)**  
-- **数据集**: Full-Mix（29.6K轨迹）= AMASS + Nymeria + GRAB + OmniRetarget；测试分AMASS Test Set / Non-AMASS Test Set（Nymeria/GRAB/OMNIRETARGET子集）。  
-- **评价指标**: FID↓（分布匹配）、R-Precision↑（Top-3语义相关性）、Control L2↓（手控点跟踪误差）、Skating Ratio↓（脚滑比例）、Downstream RL Success↑（sim中8项技能平均成功率）。  
-- **实验结果**: Full-Mix vs AMASS-only：FID↓13%（0.265→0.305），Non-AMASS测试集Skating Ratio↓84%（0.032→0.539），Control L2↓35%（0.042→0.065）；RL策略成功率稳定在98.5%，但**Zero-Shot OmniControl在Non-AMASS任务上失败率超90%**——证明retargeting pipeline是性能天花板。
+**2. 技术拆解**  
+- **重点改进**: 放弃OmniControl的human-space diffusion，改用**预重定向（pre-retargeted）机器人动作数据集**训练扩散模型；所有spatio-temporal control信号（c∈ℝ^{N×J×3}）直接作用于G1关节坐标系，而非映射后再扭曲。  
+- **架构细节**: 输入：text embedding + sparse 3D joint waypoints + noise；输出：263维pose token序列（22 joints × [pos/vel/6Drot] + root vel/height + foot contact）；模型为Transformer-based denoiser（同OmniControl），27-DOF G1关节角+SE(3)全局位姿经ℱ_post解码；训练数据量29.6K条轨迹（AMASS+GRAB+Nymeria+OmniRetarget）。  
+- **核心 Loss**: L₂ reconstruction loss on denoised pose tokens；附加realism-guidance模块（零初始化ControlNet-style adapter）显式约束foot skating、root height崩溃、手部朝向错误；无视频重建、无KL、无对比学习——纯监督式去噪。
+
+**3. 实验结果**  
+- **数据集**: Full-Mix test set（含AMASS/Nymeria/GRAB/OmniRetarget）；Non-AMASS test set（纯out-of-distribution交互任务，如drawer opening）。  
+- **评价指标**: FID↓（运动分布保真度）、R-Precision↑（Top-3与真实轨迹匹配率）、Control L2↓（手腕等关键点实际轨迹vs.约束目标误差）、Skating Ratio↓（脚滑帧占比）、Downstream RL Success↑（sim中任务完成率）。  
+- **实验结果**: Full-Mix训练使FID从0.305→0.265（↓13%），Non-AMASS测试集skating ratio从0.539→0.032（↓94%），Control L2从0.065→0.042（↓35%）；RL策略成功率稳定在98.5%，但**关键增益在zero-shot泛化**：AMASS-only模型在Non-AMASS任务上FID暴增至2.72，Full-Mix压至0.316——证明数据混合直接决定机器人空间先验的物理覆盖边界。
 ---
 </script>
             <script>
