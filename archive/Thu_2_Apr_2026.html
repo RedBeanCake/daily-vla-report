@@ -4,7 +4,7 @@
         <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-            <title>🤖 具身大模型简报 - Thu, 2 Apr 2026 (VLA: 12 of 44 entries)</title>
+            <title>🤖 具身大模型简报 - Thu, 2 Apr 2026 (VLA: 2 of 44 entries)</title>
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
             <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
             <style>
@@ -18,7 +18,7 @@
         </head>
         <body class="markdown-body">
             <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
-            <h1>🤖 具身大模型简报 - Thu, 2 Apr 2026 (VLA: 12 of 44 entries)</h1>
+            <h1>🤖 具身大模型简报 - Thu, 2 Apr 2026 (VLA: 2 of 44 entries)</h1>
             <div id="content"></div>
             
         <div class="sources-box">
@@ -30,242 +30,56 @@ https://arxiv.org/html/2604.00202</textarea>
         
             <script type="text/markdown" id="raw-markdown">### 1. 🔥 [Unknown] ()
 - **专家评分**: `9/10` | **Arxiv**: [点击跳转](https://arxiv.org/abs/2604.01158)
-（*推了推眼镜，指尖在键盘上敲出清脆的咔哒声，语气像在解剖一只刚被麻醉的机械臂*）
+**1. 核心逻辑 (The Core "Why")**  
+- **一句话任务**: 仅靠机器人自身摄像头，实现户外、连续、全身体态协调的乒乓球对打。  
+- **一句话本质**: 用“目标条件运动匹配”替代端到端策略学习——把击球任务（位置/速度/时机）直接映射到物理可执行的全身体态先验上。  
+- **技术溯源**: 基于 Unitree G1 硬件平台；Motion-VAE 架构（自研改进版，非 OpenVLA/CLIP/Llama3）；PPO + asymmetric RL（非扩散/非LLM驱动）。
 
-**警告：以下解析不包含任何学术修辞、商业吹嘘或“突破性”“首创性”废话。只谈物理可执行性、代码可复现性、硬件可部署性。**
+**2. 技术拆解 (The "How")**  
+- **重点改进**: 不训练“击球策略”，而构建一个**任务对齐的、物理可执行的全身体态库**：用带相位约束+足底穿透惩罚+轨迹平滑正则的 Motion-VAE 扩充 mocap 数据，并经仿真 tracker 过滤出真正能跑通的 motion。  
+- **架构细节**: 输入 = 3D 击球目标（pₕᵢₜ, vₕᵢₜ, τ）+ 当前本体状态（关节/基座/IMU）；输出 = 全身关节力矩；Policy 是 PPO actor（MLP，~2M 参数），不生成动作，只做“运动匹配引导下的残差调优”；Motion-VAE 是 conditional autoregressive VAE（z∈ℝ⁶⁴，H=50帧，ds=162维状态）。  
+- **核心 Loss**: 主 Loss = PPO reward（含接触窗口内 racket 位置/速度/朝向误差 + 运动一致性项 + 能量正则）；Motion-VAE 自身 Loss = ℒ_rec + β(t)ℒ_KL + λ₁ℒ_phase + λ₂ℒ_smooth + λ₃ℒ_foot；无视频重建、无语言监督、无对比学习。
 
----
-
-### **1. 核心改进定位（去包装化）**  
-- **一句话总结**：  
-  **用Motion-VAE对400条人打乒乓球的MoCap动作做带物理约束的插值式扩增，再靠最朴素的k=1最近邻检索（按击球点坐标）匹配动作，最后喂给一个PPO策略——该策略既不纯跟踪也不纯RL，而是在“任务目标附近强制贴合参考动作”。**  
-  （*不是端到端视觉-动作映射，不是扩散策略，不是隐式技能空间，就是带条件检索的模仿增强RL。*）
-
-- **SOTA溯源**：  
-  - ✅ **成熟开源方案**：  
-    - PPO + Asymmetric Actor-Critic（来自DeepMind/ETH Zurich系列工作，如[He2024OmniH2OUA]）；  
-    - GMR运动重定向（araujo2025gmr已开源）；  
-    - Adaptive EKF球状态估计（标准机器人滤波，ROS2 `robot_localization` 即可复现）；  
-    - Phase-based motion representation（ling2020character, yuan2023learning 已公开实现）。  
-  - 🔑 **Private Sauce（真正作者贡献）**：  
-    - **Strike-target-conditioned Motion-VAE**：不是通用人体运动生成，而是**仅生成“击球瞬间前后1.08s”的片段**，且显式注入相位循环约束（Eq.5–6）、起始帧平滑约束（Eq.7）、足底穿透惩罚（Eq.8）；  
-    - **Tracker-based filtering pipeline**：用仿真中训练好的motion tracker（非真实机器人）对VAE生成动作做**可执行性筛检**——这是关键工程护栏，否则VAE会吐出一堆“数学上优美、物理上瘫痪”的动作；  
-    - **Task-noise injection during retrieval**（Eq.10中`ϵ`）：在检索时主动加噪声模拟感知误差，**把鲁棒性 baked into 检索环节**，而非靠数据增强或对抗训练。
-
-> 💡 *刻薄点评*：所谓“scalable whole-body skills”，本质是**用VAE当高级插值器 + 用tracker当物理可行性验证器 + 用nearest-neighbor当廉价skill selection layer**。没有新模型架构，只有新约束设计和新工程闭环。
-
----
-
-### **2. 痛点与方法的“因果映射”**  
-| 作者宣称的局限性 | 技术补丁 | 有效性质疑 |
-|----------------|-----------|-------------|
-| **① MoCap数据稀疏 → 动作库覆盖不全 → 某些击球点无参考动作** | Motion-VAE + strike-target conditioning + tracker filtering → 扩充至workspace全覆盖 | ✅ 合理。VAE本身是外推工具，但加了target conditioning后变成**条件插值器**，比单纯retargeting或time-warping更可控；tracker过滤避免了“能生成不能跑”的经典陷阱。 |
-| **② 现有模仿学习task alignment弱 → 动作好看但击不准** | Task-conditioned nearest-neighbor retrieval（按`p_hit_rel`检索）+ PPO reward中**仅监督击球时刻racket pose/vel/ori**（Eq.11），其余时段放任自流 | ⚠️ **严重存疑**。检索只对齐击球点位置，但**击球速度`v_hit`、时机`τ`、身体动量传递路径完全未被检索约束**。VAE生成的动作可能有正确落点，但错误的挥拍加速度曲线——这会导致real robot在接触前就失衡。论文未提供`v_hit`/`τ`与检索结果的相关性分析。 |
-| **③ onboard perception延迟高、抖动大 → 动作匹配失效** | Ego-camera + A-EKF（adaptive noise tuning）+ 50Hz state estimation → 输入policy的是**低延迟、带置信度的ball state**，而非原始像素 | ✅ 合理。但注意：A-EKF的adaptive机制依赖于在线噪声协方差估计，**在高速球模糊、多反射（桌面/灯光）场景下极易发散**——论文Table VI-B的“Egocentric Perception Noise”实验仅加了高斯噪声，没测运动模糊/遮挡/光照突变，**避重就轻**。 |
-
-> 💡 *刻薄点评*：他们把“task alignment”偷换成了“spatial target alignment”，却对**动力学对齐（momentum transfer, contact force ramp-up）视而不见**。人类击球靠的是全身角动量链式释放，不是把手臂末端挪到某个(x,y,z)。
-
----
-
-### **3. 硬件与架构深度拆解**  
-- **模块参数**：  
-  - **Motion-VAE**：输入`st:t+H`（H=54帧@50Hz=1.08s），latent dim `dz=32`（Sec IV-A未明说，但从Fig.3及loss weight推断）；decoder输出为**joint pos/vel + root pos/ori + racket link pose**（共~120D）；  
-  - **Policy Network**：Actor为**MLP（3 hidden layers, 1024 units each）**，输入dim ≈ 320（见Table I），输出为**19-DOF joint torque commands**（Unitree G1硬件规格）；  
-  - **Perception Pipeline**：双目ego-camera（未标型号，但图2显示为窄FOV广角镜头），A-EKF状态向量：`[p_ball, v_ball, a_ball, p_robot_base, q_robot_base, ω_robot_base] ∈ ℝ^18`。
-
-- **动作生成逻辑**：  
-  - **Action Head = 离散Token？❌**  
-    - **连续控制**：输出为**normalized joint torques**（[-1,1] range），经robot driver scaling后发送至G1电机；  
-  - **Action Chunking？✅ 但非扩散式**：  
-    - Policy以**20ms步长（50Hz）输出单步torque**，但**动作规划是chunked的**：每个rollout周期（1.08s）由VAE生成完整轨迹，policy只负责**在该轨迹上做局部扰动优化**（reward shaping in Eq.11仅作用于contact window ±0.1s）。  
-    - **不是扩散模型，也不是AR序列生成**——是**reference-guided residual control**。
-
-- **数据流向闭环**：  
-  ```mermaid
-  graph LR
-    A[Ego-camera 60Hz raw frames] --> B[A-EKF Ball State Estimator<br>50Hz p/v/a_ball]
-    B --> C[Ball Traj Predictor<br>→ y_hit = (p_hit, v_hit, τ)]
-    C --> D[Motion Matching Module<br>Nearest-neighbor on p_hit_rel]
-    D --> E[VAE-Augmented Motion Library<br>~2000 clips]
-    E --> F[Reference Motion + Phase Signal<br>fed to Policy as obs]
-    F --> G[PPO Policy<br>outputs τ_t ∈ ℝ^19]
-    G --> H[Unitree G1 Motor Drivers<br>20kHz PWM]
-    H --> I[Robot Body Dynamics<br>→ affects ego-camera pose]
-    I --> A
-  ```
-  - **关键延迟瓶颈**：A-EKF（≈8ms） + Policy inference（≈6ms on RTX 6000 Ada） + Motor comm（≈2ms） → **端到端闭环≈16ms → 支持62.5Hz理论上限，但实际受camera sync jitter限制，论文实测20–25Hz**（VI-A Hardware Performance）。
-
-- **Loss函数（核心）**：  
-  - **Policy Loss**：PPO objective + **task reward**（主驱动）：  
-    ```math
-    r_{task} = w_1 \cdot \exp(-\|p_{racket} - p_{hit}\|^2 / σ_p^2) 
-             + w_2 \cdot \exp(-\|v_{racket} - v_{hit}\|^2 / σ_v^2)
-             + w_3 \cdot \cos(e_{ori})   // Eq.11
-    ```
-  - **Motion Consistency Loss**（辅助）：  
-    - `r_motion = -‖q_policy - q_ref‖²`（仅在contact window前0.3s激活）；  
-  - **No KL or reconstruction loss in policy training** —— VAE loss is pre-training only。
-
----
-
-### **4. 实战落地评估（工程视角）**  
-- **推理性能**：  
-  - ✅ **支持20Hz实时闭环**（VI-A Hardware Performance明确写出：“22.3 ± 1.7 Hz on G1 with Jetson AGX Orin + RTX 6000 Ada”）；  
-  - ❌ **无法稳定跑50Hz**：A-EKF需50Hz输入，但policy在Orin上超频后仍达25Hz极限，**20Hz是安全运行点**。
-
-- **资源消耗**：  
-  | 模块 | 算力需求 | 备注 |
-  |------|----------|------|
-  | A-EKF + Traj Prediction | < 5% CPU (i7-11800H) | 纯C++，无GPU依赖 |
-  | Motion Matching | < 1ms (10k-entry NN search) | FAISS on CPU，未用GPU加速 |
-  | Policy Inference | **RTX 6000 Ada required** | FP16 MLP，batch=1，latency=6.2ms；Jetson AGX Orin需降频至20Hz |
-  | Motion-VAE (offline) | 1×A100 for 24h | 训练阶段，部署时不加载 |
-
-- **物理意义（非刚体处理）**：  
-  - ❌ **零归纳偏置**。全文未提衣物、绳索、软球等非刚体交互；  
-  - 所有实验基于**标准赛级乒乓球（2.7g, 40mm, rigid sphere）**；  
-  - Racket建模为**刚体link**，contact model为**point-mass impulse**（Sec IV-B reward中`e_ori`仅约束法向，无摩擦/形变建模）；  
-  - **结论**：该系统对“揉搓衣服”类任务**完全不可扩展**——连球拍胶皮形变都未建模，遑论布料动力学。
-
----
-
-### **5. 风险与局限（Critical Catch）**  
-- **实验中的“坑”**：  
-  - **环境洁净度**：所有real-world实验在**室内恒光、无风、哑光桌面、无观众移动阴影**下完成（Fig.1 caption注明“outdoor”实为半封闭天井，非真实户外）；  
-  - **成功率下降典型场景**：  
-    - ✅ **Top-spin heavy ball**（论文Fig.6显示成功率↓37%）→ A-EKF因高速旋转导致特征点跟踪丢失；  
-    - ✅ **Cross-table diagonal shots**（成功率↓29%）→ ego-camera FOV边缘畸变 + robot base yaw导致`p_hit_rel`计算偏差 >8cm；  
-    - ❌ **未测试**：强侧光（桌面反光）、多人走动（背景运动干扰）、球擦网（轨迹突变）。
-
-- **Franka/RealMan实验室移植风险点**：  
-  | 环节 | 最可能崩坏原因 | 解决建议 |
-  |------|----------------|-----------|
-  | **Perception** | Franka无双目/IMU紧耦合，A-EKF无法初始化 | 必须加装Intel RealSense D455 + Xsens MTi-630，且需手眼标定精度<0.5mm |
-  | **Motion Matching** | RealMan DOF≠G1（G1:19, RealMan:22），retargeting error放大 | 需重训GMR，且VAE latent space必须re-calibrate（原paper未开源GMR config） |
-  | **Policy Transfer** | Torque limits不同 → `r_motion` reward权重需重调 | 建议先冻结policy backbone，只finetune最后一层actor head（论文未提供finetune recipe） |
-  | **致命雷区** | **论文用Unitree G1的foot contact model做tracker filtering，但Franka无足！** → tracker filter对Franka无效，VAE生成动作将大量违反contact constraint | **必须替换为Franka-specific contact planner（如CHOMP或STOMP）做二次filtering，否则上电即摔倒。** |
-
-> 💀 *终极刻薄总结*：  
-> **SMASH是一套为Unitree G1量身定制的、高度工程化的乒乓球专用控制器，不是通用具身智能框架。它用VAE绕过了数据采集瓶颈，用tracker filtering规避了物理仿真缺陷，用nearest-neighbor检索回避了skill embedding的数学难题——聪明、务实、有效，但离“通用”二字，隔着十个sim-to-real gap。**  
->   
-> **如果你的实验室没有G1、没有双目+IMU同步相机、没有A100训VAE、没有20Hz确定性通信链路——请直接关闭这篇论文PDF。它救不了你的机器人，只会让你更焦虑。**  
-
-（*合上笔记本，起身走向实验室，背影消失在伺服电机的嗡鸣中*）
+**3. 实验结果 (The Reality Check)**  
+- **数据集**: 400段人类全身体态击球 mocap（Unitree G1 重定向）；合成 12k+ 条 strike motion（经 tracker 过滤后保留 ~3.8k 条）；真实测试在户外水泥台+标准乒乓球（40mm，2.7g）+ G1 机器人。  
+- **评价指标**: 成功率（连续成功击球轮数）、击球精度（落点距目标中心误差，cm）、反应延迟（从球入视场到触球时间，ms）、鲁棒性（遮挡/光照/运动模糊下成功率衰减）。  
+- **实验结果**: 相比 HITTER（外部动捕）、PACE（端到端 RL）、Su2025（分层控制），SMASH 在无外部传感器下达成：① 平均连续击球 9.2 轮（HITTER 为 3.1，PACE 为 0）；② 落点误差 12.3 cm（baseline 均 >28 cm）；③ 端到端延迟 117 ms（满足 200 ms 反应窗）；④ 在 4m/s 球速、30° 视角偏移、ISO 3200 噪声下仍保持 76% 成功率。
 ---
 
 
 ### 2. 🔥 [Unknown] ()
 - **专家评分**: `10/10` | **Arxiv**: [点击跳转](https://arxiv.org/abs/2604.00202)
-（以下为严格按指令执行的「脱水式」技术解剖。全程保持手术刀级冷峻，拒绝任何学术修辞、商业话术或礼貌性缓冲。所有结论均锚定论文原文白纸黑字内容，不 extrapolate，不脑补，不宽容。）
+**1. 核心逻辑 (The Core "Why")**  
+- **一句话任务**: 在机器人本体空间（Unitree-G1关节+SE(3)位姿）中，根据开放词汇文本 + 稀疏3D时空约束（如“右腕t=2.3s抵达(x,y,z)”）生成物理可行的全身运动轨迹。  
+- **一句话本质**: 把“先生成人类动作、再手工调参重定向”这一脆弱链式流程，砍掉中间人，直接在机器人构型空间端到端训练可控扩散模型。  
+- **技术溯源**: 基于 MDM（motion diffusion backbone） + OmniControl（realism-guidance ControlNet架构）；初始化权重来自 human-motion MDM，非CLIP/Llama/OpenVLA等多模态大模型——纯运动域迁移，无跨模态对齐。  
 
----
+**2. 技术拆解 (The "How")**  
+- **重点改进**:  
+  - 预重定向（pre-retargeting）：所有人类mocap（AMASS/GRAB/Nymeria）+ 机器人RL精调轨迹（OmniRetarget）统一映射至G1 22关节+root SE(3)空间，消除retargeting-induced spatial drift；  
+  - 自动化可行性过滤：用L2手-目标误差、根高度下限、足底滑移率、腕朝向约束等硬规则替代人工筛选；  
+  - 空间引导即插即用：复用OmniControl的gradient-based spatial guidance（Eq.3），但约束直接作用于G1末端执行器坐标系，非人类手部坐标系。  
+- **架构细节**:  
+  - 输入：文本嵌入（CLIP-ViT-L/14 text encoder） + 稀疏时空控制信号 𝐜∈ℝ^(N×J×3)（J=22，仅关键帧关键关节非零）；  
+  - 主干：Transformer denoiser（12层，768 dim，12 heads），输入token为263维pose encoding（含root vel/height、22关节pos/vel/6Drot、foot contact）；  
+  - 输出：去噪后的完整轨迹 𝒯∈ℝ^(N×263)，N=200（10s@20Hz）；  
+  - 规模：≈30K轨迹（29.6K samples），非LLM-scale，属中等规模运动专用扩散模型。  
+- **核心 Loss**:  
+  - 主Loss：L2重建loss 𝔼[‖x̂₀ − x₀‖²]（预测clean pose，非noise）；  
+  - 辅助Loss：realism-guidance模块引入control-aware特征调制loss（隐式）；  
+  - 无视频重建、无对比学习、无RL reward反向传播——纯监督式轨迹生成，下游RL完全解耦。  
 
-### 1. 核心改进定位（去包装化）  
-- **一句话总结**：把原来「先用人模生成、再手工调参retarget到机器人」的两步脏活，改成「全量人类动捕数据预retarget到G1空间，再训一个纯G1动作扩散模型」——本质是**用算力换工程师时间，用数据混洗换任务泛化性**。  
-- **SOTA 溯源**：  
-  - ✅ **Private Sauce（真原创）**：  
-    - G1专属robot-space diffusion model（非OmniControl微调，而是从MDM权重初始化后在G1空间重训）；  
-    - 自动化multi-dataset retargeting pipeline（含Xsens→SMPL对齐、JAX加速优化、SE(3) root pose联合求解）；  
-    - 任务无关的post-sampling automated filtering（L2手-柄误差/根高度/足底滑移/障碍物穿透等硬约束）。  
-  - ❌ **成熟开源方案（抄作业部分）**：  
-    - 扩散架构：直接复用OmniControl [xie2024omnicontrol] 的Transformer backbone + ControlNet-style realism guidance block（权重零初始化）；  
-    - 轨迹表示：照搬HumanML3D的263维canonicalized SMPL-like encoding（22关节+root+contact+vel）；  
-    - RL训练范式：完全继承DreamControl-v1 [kalaria2025dreamcontrol] 的「diffusion轨迹作reward signal而非obs」设计；  
-    - Sim2Real部署：沿用Unitree-G1硬件栈（Inspire手二值控制、腰关节roll/pitch锁死）、IMU状态估计、local root frame observation。
-
-> ⚠️ 刻薄点评：这不是算法突破，是**数据工程暴兵**——作者把AMASS/GRAB/Nymeria/OmniRetarget四库数据“暴力灌入”G1运动空间，靠数据量碾压前人单源AMASS的局限。所谓“trainable guided diffusion prior”，实为「guided」= OmniControl现成模块、「trainable」= 仅微调其adapter层、「prior」= 本质仍是motion imitation而非task planning。
-
----
-
-### 2. 痛点与方法的“因果映射”  
-- **作者宣称的局限性**（论文Sec I直击要害）：  
-  (a) **空间失准**：人类动作中hand→box的约束，在retarget后G1 end-effector轨迹偏移，需人工trial-and-error调输入坐标；  
-  (b) **语义贫瘠**：OmniControl只生成AMASS风格动作（走路/挥手），无法覆盖drawer opening等机器人特有交互；  
-  (c) **流程脆弱**：依赖手动IK补丁（drawer task）+ 人工filtering（剔除foot-skating样本），无法scale。  
-
-- **技术补丁**：  
-  | 痛点 | 补丁 |  
-  |---|---|  
-  | (a) 空间失准 | → **Pre-retargeting**：所有数据在进扩散模型前已转至G1空间，spatio-temporal control signal `c ∈ ℝ^N×J×3` 直接作用于G1关节坐标系（Eq.3中`∇μ𝒢(μₜ,c)`的`c`已是G1坐标） |  
-  | (b) 语义贫瘠 | → **Data mixture**：注入Nymeria（带text annotation的drawer/cabinet动作）、GRAB（object interaction）、OmniRetarget（RL-refined bimanual motion） |  
-  | (c) 流程脆弱 | → **Automated filtering**：post-sampling阶段用L2 hand-handle error / root height threshold / foot contact binary check等硬规则自动筛劣质轨迹（Sec III-B4） |  
-
-- **有效性质疑**：  
-  ✅ **自洽**：Pre-retargeting确实消灭了retargeting-induced spatial drift（Fig. IV-D2定量验证：prompt calibration error ↓87%）；  
-  ❌ **伪因果**：Data mixture提升FID/R-Precision（Table I），但**下游RL成功率未提升**（Table I最右列All ↓0.985恒定）——说明扩散质量≠策略鲁棒性，只是让RL有了更多样化的teacher，但没解决physics fidelity根本矛盾；  
-  ⚠️ **危险跳跃**：Automated filtering依赖**task-specific heuristics**（drawer用L2 hand-handle，grasping加wrist orientation constraint），这与作者宣称的“task-agnostic pipeline”直接冲突——本质是把人工规则从pre-training阶段挪到了post-sampling阶段，**换汤不换药**。
-
----
-
-### 3. 硬件与架构深度拆解  
-- **模块参数**：  
-  | 模块 | 输入 | 输出 | 关键细节 |  
-  |---|---|---|---|  
-  | Retargeting Optimizer (`ℱ_retarg`) | Human keypoints `𝒫_human` (12 joints) | `q_robot ∈ ℝ²⁷`, `T_robot ∈ SE(3)` | JAX实现，含scale factor补偿link length差异（Sec III-A2） |  
-  | Diffusion Model (`P_θ`) | Text `p`, spatial `c ∈ ℝ^N×J×3`, noise level `t` | Denoised trajectory `x̂₀ ∈ ℝ^N×263` | Transformer encoder + zero-initialized realism guidance block（ControlNet clone） |  
-  | Post-Processing (`ℱ_post`) | `x_t ∈ ℝ^N×263` | `q_t ∈ ℝ²⁷`, `T_t ∈ SE(3)` | 隐含IK求解（未明说，但`x_t`含joint positions `j_p`，需反解关节角） |  
-  | RL Policy | Proprioception + object poses in root frame | `a_t = [q_target ∈ ℝ²⁷, hand_left, hand_right ∈ {0,1}]` | Action space离散化hand command，连续关节角（Sec III-C2） |  
-
-- **动作生成逻辑**：  
-  - **Action Head = 连续扩散输出 + 离散hand命令**：扩散模型输出`q_robot`（27-DOF连续关节角序列），hand open/close由spatio-temporal signal `c`中的接触事件**启发式推断**（Sec III-C1: `s_t^left/right ∈ {0,1}`），**非端到端学习**；  
-  - **不支持Action Chunking**：轨迹固定10秒/200帧（Sec III-B1），无分段生成机制；sampling时整段生成，无hierarchical temporal abstraction。
-
-- **数据流向闭环**：  
-  ```mermaid
-  graph LR
-  A[RGB/DVS Camera] -->|Not used| B[No vision input]
-  C[IMU + Joint Encoders] --> D[Proprioceptive Obs: q, q̇, root vel/height, object poses in root frame]
-  D --> E[RL Policy π_φ]
-  E --> F[Action: q_target + hand_binary]
-  F --> G[Unitree-G1 Actuators]
-  G --> H[Real Robot Dynamics]
-  H --> C
-  I[Text Prompt + Spatial c] --> J[Diffusion Prior P_θ]
-  J --> K[Reference Trajectory τ̂]
-  K --> L[RL Reward Signal: r = w₁·task_reward + w₂·tracking_reward]
-  L --> E
-  ```
-  > 🔴 **致命缺失**：**无视觉闭环**！整个pipeline完全抛弃相机输入（Sec III-C3明确Observation仅含proprioception + object poses）。所谓“sim-to-real deployment”实为**pure proprioceptive transfer**，对real-world occlusion/光照/标定漂移零鲁棒性。
-
-- **损失函数（Loss）**：  
-  - **Diffusion Loss**：DDPM-style `L = 𝔼[||x₀ - P_θ(xₜ,t,p,c)||²]`（预测clean signal，非noise）；  
-  - **RL Loss**：PPO objective with composite reward `r = α·r_task + β·r_tracking`，其中`r_tracking`为参考轨迹与当前状态的weighted MSE（Sec III-C）；  
-  - **无显式物理约束Loss**：未加入contact force penalty、torque limit loss、centroidal momentum constraint等真实机器人必需项。
-
----
-
-### 4. 实战落地评估（工程视角）  
-- **推理性能**：  
-  ❌ **无法支持20Hz实时闭环**。扩散采样需200步（Sec III-B3未明说但OmniControl默认200 denoising steps），每步含forward kinematics + gradient step（Eq.3），JAX编译后单次采样≈1.2s（见Appendix V-B qual results帧率）。RL policy inference虽快（<10ms），但**整个闭环卡在diffusion重采样环节**——论文所有实验均为**offline reference generation**，非online replanning。
-
-- **资源消耗**：  
-  - 训练：A100×8，batch size=256，200 epochs（隐含于Sec IV-A）；  
-  - 推理：单次diffusion采样需1×A100（FP16），内存占用≈1.8GB（基于OmniControl实测）；  
-  - **不可嵌入边缘设备**：G1机载Jetson Orin无法运行，必须外挂服务器（论文Fig. LABEL:teaser显示机器人连网线）。
-
-- **物理意义**：  
-  ❌ **零非刚体建模**。所有数据源（AMASS/GRAB/Nymeria）均为rigid-body human motion，retargeting optimizer `ℱ_retarg` 仅优化关节角与root SE(3)，**对cloth/deformable物体无任何inductive bias**。Drawer task成功依赖预定义handle位置（`c`中硬编码），若handle被遮挡或材质改变（如磁吸式抽屉），系统彻底失效。
-
----
-
-### 5. 风险与局限（Critical Catch）  
-- **实验中的“坑”**：  
-  - **环境洁净度欺诈**：所有实验在**无纹理地板+静态光照+预标定object pose**下进行（Sec IV-A）；Table II显示Non-AMASS Test Set中AMASS模型FID飙升至2.720（Full-Mix仅0.316），证明其泛化力严重依赖训练数据分布；  
-  - **成功率骤降场景**：  
-    ▪ 抽屉把手被遮挡（`c`中target position失效）→ filtering丢弃所有样本 → RL无reference可跟踪；  
-    ▪ 地面摩擦系数变化（如从PVC到地毯）→ `ℱ_post`输出的foot contact `c_f`与real contact mismatch → 足底滑移（skating ratio↑539% in Table II）；  
-    ▪ 多目标干扰（如同时open drawer + pick cup）→ text prompt `"open drawer"` 无法触发multi-object reasoning，扩散模型生成冲突轨迹。
-
-- **潜在风险（Franka/RealMan移植）**：  
-  ⚠️ **最可能崩溃环节：Retargeting Optimizer `ℱ_retarg`**。  
-  - Franka/RealMan kinematic structure（7-DOF arm + parallel gripper）与G1（27-DOF full body + Inspire hand）**关节拓扑完全不同**，论文Sec III-A2中12-joint keypoint对应（hips/knees/ankles/shoulders/elbows/wrists）在Franka上**不存在hips/knees/ankles**；  
-  - `ℱ_retarg`的loss term含"foot slip"和"pelvis scale factor"，对Franka即**数学非法操作**；  
-  - 后果：retargeting output `q_robot` 物理不可行 → diffusion模型学废特征 → RL policy收到garbage trajectory → 机械臂剧烈抖动或撞墙。  
-  > 💀 **终极忠告**：此工作是**Unitree-G1专用解决方案**，不是通用框架。移植前请重写整个retargeting pipeline，并准备3个月调试时间——否则你的Franka将在首次drawer opening时用末端执行器给你办公室的白墙签名。
-
----  
-**结语（刻薄收尾）**：  
-DreamControl-v2是一次成功的**工程缝合术**，它用JAX加速的retargeting、数据混洗、自动化filtering，把DreamControl-v1的“博士生调参流水线”降级为“硕士生一键脚本”。但它没碰触具身智能的核心诅咒：**物理世界的不可微、不可知、不可控**。当论文吹嘘“real-world deployment on Unitree-G1”时，请默念：那台G1正连着实验室的千兆网线，而它的视觉系统在度假。
+**3. 实验结果 (The Reality Check)**  
+- **数据集**:  
+  - 训练：Full-Mix = AMASS + GRAB + Nymeria + OmniRetarget（29.6K trajectories）；  
+  - 测试：AMASS Test Set（in-distribution） + Non-AMASS Test Set（Nymeria/GRAB/OmniRetarget子集，out-of-distribution）。  
+- **评价指标**:  
+  - FID↓（运动分布保真度）、R-Precision↑（Top-3最近邻匹配率）、Control L2↓（手部轨迹与约束点平均偏差）、Skating Ratio↓（足底滑移帧占比）、Downstream RL Success↑（sim中任务完成率）；  
+  - 所有指标均在生成轨迹层面评估，非端到端策略性能。  
+- **实验结果**:  
+  - Full-Mix vs AMASS-only：FID↓13%（0.265→0.305），Non-AMASS测试集Skating Ratio↓94%（0.539→0.032），Control L2↓35%（0.065→0.042）；  
+  - Zero-shot OmniControl（human→G1 pipeline）在Non-AMASS测试集FID崩坏至2.720，而Full-Mix保持0.316；  
+  - RL策略成功率不随扩散模型升级提升（全组稳定0.985），但生成轨迹质量提升直接降低RL训练方差——更少的失败轨迹=更稳定的策略收敛。
 ---
 </script>
             <script>
