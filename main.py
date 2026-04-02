@@ -124,6 +124,7 @@ def only_filter_and_report(papers):
 
     report = "📊 **今日具身智能论文初筛建议**\n"
     report += "请复制 ID 到 GitHub 手动触发解析：\n\n"
+    report += f"👉 [点击去手动触发解析]({GITHUB_PAGES_URL.replace('.io/', '.com/').replace(repo_name, repo_name + '/actions')})\n\n"
     for p in recommendations:
         report += f"- `ID: {p['id']}` | 分数: {p['score']} | {p.get('title_zh', '无标题')}\n"
     return report
@@ -136,6 +137,15 @@ def deep_dive_only(papers_to_process):
         paper_id = item['id']
         print(f"正在进行全文深度解析: {paper_id}...")
         full_text = get_arxiv_full_text(paper_id)
+
+        if not full_text:
+            print(f"HTML 全文暂未生成，尝试抓取摘要页...")
+            res_abs = requests.get(f"https://arxiv.org/abs/{paper_id}", timeout=10)
+            if res_abs.status_code == 200:
+                abs_soup = BeautifulSoup(res_abs.text, 'html.parser')
+                full_text = abs_soup.find('blockquote', class_='abstract').text
+            else:
+                full_text = None
         
         expert_prompt = f"""
         Role: 你是一位具身智能领域资深专家。请模仿 NotebookLM 的深度播客/简报风格，对论文进行高信息密度的“脱水”总结。
