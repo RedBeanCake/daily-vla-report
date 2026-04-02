@@ -1,0 +1,113 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+            <title>🤖 具身大模型简报 - Manual_Batch_0402 (VLA: 2 of 2 entries)</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <style>
+                html, body { -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+                .sources-box { margin-top: 50px; padding: 20px; background: #f6f8fa; border: 1px dashed #d0d7de; border-radius: 10px; }
+                .sources-box textarea { width: 100%; height: 100px; margin: 10px 0; padding: 10px; font-family: monospace; font-size: 12px; border: 1px solid #d0d7de; border-radius: 6px; resize: none; }
+                .copy-btn { background-color: #2da44e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+            </style>
+        </head>
+        <body class="markdown-body">
+            <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
+            <h1>🤖 具身大模型简报 - Manual_Batch_0402 (VLA: 2 of 2 entries)</h1>
+            <div id="content"></div>
+            
+        <div class="sources-box">
+            <h3>🔗 NotebookLM Sources 集合区 (共 2 篇)</h3>
+            <textarea id="sources-text" readonly>https://arxiv.org/html/2604.01158
+https://arxiv.org/html/2604.00202</textarea>
+            <button class="copy-btn" onclick="copySources()">📋 复制所有来源链接</button>
+        </div>
+        
+            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [SMASH: Mastering Scalable Whole-Body Skills for Humanoid Ping-Pong with Egocentric Vision] (SMASH：基于自视角视觉的可扩展全身技能学习，实现人形机器人乒乓球对抗)
+- **研究机构**: `The University of Hong Kong, Kinetix AI`
+- **Arxiv ID**: `2604.01158` | [点击跳转](https://arxiv.org/abs/2604.01158)
+
+**0. 论文标题**  
+- **英文标题**: SMASH: Mastering Scalable Whole-Body Skills for Humanoid Ping-Pong with Egocentric Vision  
+- **中文标题**: SMASH：基于自视角视觉的可扩展全身技能学习，实现人形机器人乒乓球对抗  
+- **研究机构**: The University of Hong Kong, Kinetix AI  
+
+**1. 整体逻辑**  
+- **一句话任务**: 仅靠机载单目摄像头，在真实动态场景中完成连续、高精度、多样化的全身乒乓球击打（含 smash、低蹲抽、大范围横移击球）  
+- **一句话本质**: 用「任务条件化运动匹配」替代端到端策略或分层控制，将击球目标（pₕᵢₜ, vₕᵢₜ, τ）直接映射为物理可执行的全身运动先验，闭环耦合感知–规划–执行  
+- **技术溯源**: 无CLIP/Llama3等大语言/多模态基座；核心基座为自研Motion-VAE（非扩散、非Transformer）、PPO+asymmetric RL框架、GMR运动重定向器；感知模块基于AEKF+轨迹外推，非视觉foundation model  
+
+**2. 技术拆解**  
+- **重点改进**:  
+  - 不训练端到端视觉策略，不微调ViT，不引入任何语言/文本信号；纯运动空间建模：用strike-target-conditioned nearest-neighbor matching替代motion embedding distillation或latent skill policy  
+  - Motion-VAE不生成任意动作，只生成以击球点为条件的、带相位结构（sin/cos cyclic phase）、足底穿透惩罚、边界平滑约束的strike-cycle clip  
+  - 拒绝“motion prior as regularization”软约束；采用硬匹配：每个控制步强制绑定一个物理可执行参考运动，policy仅优化偏差而非从头生成  
+- **架构细节**:  
+  - 输入：ego-camera视频流 → AEKF估计球状态 → 轨迹预测 → 生成yₕᵢₜ = (pₕᵢₜ, vₕᵢₜ, τ) → 在增强运动库中检索最近邻 → 输出参考运动clip + phase cue + anchor frame  
+  - 输出：64-DOF Unitree G1全身关节力矩（PPO actor输出）  
+  - 模型规模：Motion-VAE为5-layer causal CNN（非Transformer），z∈ℝ⁶⁴；policy为MLP（1024×3），非扩散/非LLM；无视觉编码器参数参与策略训练  
+- **核心 Loss**:  
+  - Motion-VAE：ℒᵥₐₑ = ℒᵣₑc + β(t)ℒₖₗ + λ₁ℒₚₕₐₛₑ + λ₂ℒₛₘₒₒₜₕ + λ₃ℒբₒₒₜ（三重物理约束）  
+  - Policy：rₜₐₛₖ = −‖pᵣₐcₖₑₜ−pₕᵢₜ‖ − ‖vᵣₐcₖₑₜ−vₕᵢₜ‖ − eₒᵣᵢ（arccos对称方向对齐） + rₘₒₜᵢₒₙ = −‖q−qᵣₑf‖² − ‖q̇−q̇ᵣₑf‖² + rᵣₑg = −‖a‖² − ‖a−aₜ₋₁‖²  
+  - 无视频重建loss、无对比学习、无跨模态对齐项  
+
+**3. 实验结果**  
+- **数据集**: 400段真人人形击球MoCap（Unitree G1重定向） + Motion-VAE生成2800+条物理可执行strike clip；真实部署在户外水泥地乒乓台（无反光标记、无补光、无固定背景）  
+- **评价指标**:  
+  - 成功率：连续5回合不失球（每回合≥3次有效击打）  
+  - 精度：击球落点距目标区中心L₂误差（cm）  
+  - 多样性：smash/low-crouch/lateral-shift三类动作占比（人工标注）  
+  - 鲁棒性：在20dB运动模糊+15°/s基座抖动下成功率衰减率  
+- **实验结果**:  
+  - 相比HITTER（external MoCap+upper-body imitation）：成功率↑47%，落点误差↓63%（21.4→7.9 cm），首次实现户外连续5回合（HITTER仅室内单次击打）  
+  - 相比PACE（end-to-end RL+ball prediction）：响应延迟↓38%（86→53 ms），smash类动作占比从0%→31%，低蹲击球成功率从12%→89%  
+  - Motion-VAE数据扩增使击球点覆盖率从原始MoCap的32% workspace提升至91%，匹配失败率归零（baseline motion matching在边缘区域失败率41%）  
+  - 纯机载视觉下，连续击球最长持续137秒（22回合），失败主因是球速超5.2 m/s时AEKF轨迹外推漂移，非视觉检测失效
+
+---
+
+
+### 2. 🔥 [DreamControl-v2: Simpler and Scalable Autonomous Humanoid Skills via Trainable Guided Diffusion Priors] (DreamControl-v2：通过可训练的引导式扩散先验实现更简洁、可扩展的人形机器人自主技能)
+- **研究机构**: `General Robotics (USA), Brown University, UC Berkeley`
+- **Arxiv ID**: `2604.00202` | [点击跳转](https://arxiv.org/abs/2604.00202)
+
+**0. 论文标题**  
+- **英文标题**: DreamControl-v2: Simpler and Scalable Autonomous Humanoid Skills via Trainable Guided Diffusion Priors  
+- **中文标题**: DreamControl-v2：通过可训练的引导式扩散先验实现更简洁、可扩展的人形机器人自主技能  
+- **研究机构**: General Robotics (USA), Brown University, UC Berkeley  
+
+**1. 整体逻辑**  
+- **一句话任务**: 生成物理可行、文本+时空联合约束的机器人全身轨迹，驱动RL策略完成loco-manipulation任务。  
+- **一句话本质**: 把“先生成人类动作再手工调参重定向”砍掉，直接在机器人本体空间（G1）端到端训练可控扩散模型。  
+- **技术溯源**: 基于 OmniControl（架构） + MDM（初始化权重） + SMPL-like 人体运动表征（复用 humanml 预处理流水线），无CLIP/Llama/OpenVLA等多模态基座——纯运动域扩散，文本仅作conditioning embedding。  
+
+**2. 技术拆解**  
+- **重点改进**: 彻底废弃 generate-then-retarget 范式；所有数据（AMASS/GRAB/Nymeria/OmniRetarget）统一预重定向至G1关节空间，构建robot-native diffusion dataset；spatio-temporal control直接作用于G1末端位姿（非人类手部），消除retargeting-induced spatial drift。  
+- **架构细节**: 输入：text embedding + sparse 3D joint targets (N×J×3)；输出：263维G1 pose序列（22关节位置/速度/6D旋转+root状态+foot contact）；模型：Transformer denoiser（OmniControl结构，MDM初始化），realism-guidance模块（零初始化ControlNet式分支）显式注入空间约束；参数量≈MDM（未公开具体规模，但属中等规模Transformer）。  
+- **核心 Loss**: 主Loss = L2重建loss（预测clean pose x̂₀ vs ground-truth）；辅助机制 = spatial guidance（采样时梯度步长修正μₜ）、automated filtering（L2 hand-handle error/foot slip/height violation等硬阈值剔除）、realism-guidance模块隐式正则化（无显式loss项）。  
+
+**3. 实验结果**  
+- **数据集**: Full-Mix（AMASS + GRAB + Nymeria + OmniRetarget → 29.6K G1-retargeted trajectories）；test split分AMASS-only与Non-AMASS（Nymeria/GRAB/OmniRetarget子集）。  
+- **评价指标**: FID↓（分布保真度）、R-Precision↑（Top-1/2/3语义匹配率）、Control L2↓（手部目标误差）、Skating Ratio↓（脚滑帧占比）、Downstream RL Success↑（sim中8项技能平均成功率）。  
+- **实验结果**: Full-Mix扩散模型相较AMASS-only：FID↓13%（0.265→0.305）、Non-AMASS test上Skating Ratio↓94%（0.032→0.539）、Control L2↓35%（0.042→0.065）；RL策略成功率持平（0.985），但**关键提升在于稳定性**——Full-Mix使RL训练方差下降70%，且无需任何manual IK或人工轨迹筛选；real-world在Unitree-G1上成功部署8个技能（含drawer opening），zero-shot迁移失败率从99.5%降至7.5%。
+
+---
+</script>
+            <script>
+                const rawMdElement = document.getElementById('raw-markdown');
+                if (rawMdElement) { document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent); }
+                function copySources() {
+                    const textArea = document.getElementById('sources-text');
+                    textArea.select();
+                    document.execCommand('copy');
+                    alert('已复制链接');
+                }
+            </script>
+        </body>
+        </html>
+        
