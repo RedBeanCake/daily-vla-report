@@ -71,15 +71,14 @@ def get_arxiv_full_text(paper_id):
         print(f"抓取全文出错 {paper_id}: {e}")
         return None
 
-def process_with_ai(papers):
-    """两阶段处理：先按原始 Prompt 筛选，再读全文深度总结"""
-    if not papers: return ""
+def only_filter_and_report(papers):
+    """仅执行初筛，返回高分 ID 列表"""
+    if not papers: return "今日无新论文。"
     
-    # --- 第一阶段：初筛 (完全使用你提供的原始 Prompt 逻辑) ---
     all_filtered_papers = []
     for i in range(0, len(papers), 40):
         chunk = papers[i:i+40]
-        # 这里嵌入你提供的原始筛选 Prompt
+        
         filter_prompt = f"""你是一个专注于【大模型具身智能】的顶级研究员。请从以下论文中筛选出符合要求的论文，并为它们打分（1-10分，10分为极度相关）。
 
         ✅ 必须保留（相关度 7-10 分）：
@@ -119,13 +118,23 @@ def process_with_ai(papers):
                 all_filtered_papers.extend(json.loads(match.group(0)))
         except Exception: pass
 
-    # --- 第二阶段：针对高分论文阅读全文并进行专家解析 ---
-    # 筛选出评分 >= 8 的精选论文进行深度“脱水”
-    high_quality_papers = [p for p in all_filtered_papers if p.get('score', 0) >= 8]
+    # 过滤出 8 分以上的作为建议
+    recommendations = [p for p in all_filtered_papers if p.get('score', 0) >= 8]
+    if not recommendations: return "今日无高分精选论文。"
+
+    report = "📊 **今日具身智能论文初筛建议**\n"
+    report += "请复制 ID 到 GitHub 手动触发解析：\n\n"
+    for p in recommendations:
+        report += f"- `ID: {p['id']}` | 分数: {p['score']} | {p.get('title_zh', '无标题')}\n"
+    return report
+
+def deep_dive_only(papers_to_process):
+    """直接执行深度全文解析，跳过打分环节"""
     final_reports = []
     
-    for idx, item in enumerate(high_quality_papers, 1):
+    for idx, item in enumerate(papers_to_process, 1):
         paper_id = item['id']
+        print(f"正在进行全文深度解析: {paper_id}...")
         full_text = get_arxiv_full_text(paper_id)
         
         expert_prompt = f"""
@@ -133,6 +142,11 @@ def process_with_ai(papers):
         Task: 拒绝任何废话（如“作者提出”、“本研究发现”），直接输出核心干货，每句话尽量简练。保持刻薄、敏锐，直击技术本质。
 
         请严格按以下结构输出（使用 Markdown）：
+
+        **0. 论文标题**
+        - **英文标题**: [在此填入论文原文标题]
+        - **中文标题**: [在此填入精准的中文翻译]
+        - **研究机构**: [在此填入作者所属的主要单位，如：DeepMind, Stanford University等]
 
         **1. 整体逻辑**
         - **一句话任务**: [论文研究的任务是什么，如：根据文本生成图像]
@@ -160,11 +174,22 @@ def process_with_ai(papers):
                 messages=[{"role": "user", "content": expert_prompt}]
             )
             report = completion.choices[0].message.content
+
+            # --- 提取逻辑 ---
+            import re
+            title_en = re.search(r"英文标题\*\*: (.*)", report)
+            title_zh = re.search(r"中文标题\*\*: (.*)", report)
+            affiliation = re.search(r"研究机构\*\*: (.*)", report)
+            t_en = title_en.group(1).strip() if title_en else f"Arxiv: {paper_id}"
+            t_zh = title_zh.group(1).strip() if title_zh else ""
+            aff = affiliation.group(1).strip() if affiliation else "未知机构"
             
-            score = item.get('score', 0)
-            md = f"### {idx}. 🔥 [{item.get('title_en', 'Unknown')}] ({item.get('title_zh', '')})\n"
-            md += f"- **专家评分**: `{score}/10` | **Arxiv**: [点击跳转](https://arxiv.org/abs/{paper_id})\n\n"
-            md += f"{report}\n"
+            # --- 渲染 Markdown ---
+            # 在标题下方增加一行显示机构信息
+            md = f"### {idx}. 🔥 [{t_en}] ({t_zh})\n"
+            md += f"- **研究机构**: `{aff}`\n" # 新增展示行
+            md += f"- **Arxiv ID**: `{paper_id}` | [点击跳转](https://arxiv.org/abs/{paper_id})\n\n"
+            md += f"{report}\n\n"
             md += "---\n"
             final_reports.append(md)
         except Exception as e:
@@ -276,16 +301,39 @@ def generate_archive_and_index(date_info, arxiv_content):
         }
     })
 
+def send_feishu_notification(text):
+    """发送纯文本或简单 Markdown 到飞书"""
+    requests.post(FEISHU_WEBHOOK, json={
+        "msg_type": "text",
+        "content": {"text": text}
+    })
+    
 if __name__ == "__main__":
-    all_p = {}
-    date_info = None
-    for cat in CATEGORIES:
-        info, total_len, ps = scrape_arxiv(cat)
-        if info: date_info = info
-        for p in ps: all_p[p['id']] = p
+    target_ids_str = os.getenv("TARGET_IDS", "")
     
-    # 删除了 Hugging Face 的抓取和处理逻辑
-    arxiv_content = process_with_ai(list(all_p.values()))
-    
-    if date_info: 
-        generate_archive_and_index(date_info, arxiv_content or "")
+    if target_ids_str:
+        # --- 模式 A：执行手动解析模式 ---
+        selected_ids = [i.strip() for i in target_ids_str.split(",") if i.strip()]
+        papers_to_process = [{"id": pid} for pid in selected_ids]
+        
+        # 调用深度解析函数
+        arxiv_content = deep_dive_only(papers_to_process)
+        
+        # 生成网页并推送（复用原函数）
+        date_info = {
+            "prefix": f"Manual_Batch_{datetime.datetime.now().strftime('%m%d')}", 
+            "total": len(selected_ids)
+        }
+        generate_archive_and_index(date_info, arxiv_content)
+    else:
+        # --- 模式 B：定时任务执行初筛汇报 ---
+        all_p = {}
+        date_info = None
+        for cat in CATEGORIES:
+            info, _, ps = scrape_arxiv(cat)
+            if info: date_info = info
+            for p in ps: all_p[p['id']] = p
+        
+        # 仅初筛并汇报到飞书
+        report_list = only_filter_and_report(list(all_p.values()))
+        send_feishu_notification(report_list)
