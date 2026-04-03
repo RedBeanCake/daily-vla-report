@@ -346,8 +346,9 @@ if __name__ == "__main__":
         arxiv_content = deep_dive_only(papers_to_process)
         
         # 生成网页并推送（复用原函数）
+        current_date = datetime.datetime.now().strftime('%a, %d %b %Y') # 格式如: Fri, 03 Apr 2026
         date_info = {
-            "prefix": f"Manual_Batch_{datetime.datetime.now().strftime('%m%d')}", 
+            "prefix": current_date, 
             "total": len(selected_ids)
         }
         generate_archive_and_index(date_info, arxiv_content)
