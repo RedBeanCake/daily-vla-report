@@ -346,11 +346,16 @@ if __name__ == "__main__":
         arxiv_content = deep_dive_only(papers_to_process)
         
         # 生成网页并推送（复用原函数）
-        current_date = datetime.datetime.now().strftime('%a, %d %b %Y') # 格式如: Fri, 03 Apr 2026
-        date_info = {
-            "prefix": current_date, 
-            "total": len(selected_ids)
-        }
+        real_info, _, _ = scrape_arxiv(CATEGORIES[0]) 
+        
+        if real_info:
+            date_info = real_info
+        else:
+            # 兜底：如果抓取失败，再使用当前的日期
+            date_info = {
+                "prefix": datetime.datetime.now().strftime('%a, %d %b %Y'), 
+                "total": "0" 
+            }
         generate_archive_and_index(date_info, arxiv_content)
     else:
         # --- 模式 B：定时任务执行初筛汇报 ---
