@@ -1,0 +1,173 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+            <title>🤖 具身大模型简报 - Manual_Batch_0403 (VLA: 4 of 4 entries)</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <style>
+                html, body { -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+                .sources-box { margin-top: 50px; padding: 20px; background: #f6f8fa; border: 1px dashed #d0d7de; border-radius: 10px; }
+                .sources-box textarea { width: 100%; height: 100px; margin: 10px 0; padding: 10px; font-family: monospace; font-size: 12px; border: 1px solid #d0d7de; border-radius: 6px; resize: none; }
+                .copy-btn { background-color: #2da44e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+            </style>
+        </head>
+        <body class="markdown-body">
+            <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
+            <h1>🤖 具身大模型简报 - Manual_Batch_0403 (VLA: 4 of 4 entries)</h1>
+            <div id="content"></div>
+            
+        <div class="sources-box">
+            <h3>🔗 NotebookLM Sources 集合区 (共 4 篇)</h3>
+            <textarea id="sources-text" readonly>https://arxiv.org/html/2604.01570
+https://arxiv.org/html/2604.01567
+https://arxiv.org/html/2604.01985
+https://arxiv.org/html/2604.01765</textarea>
+            <button class="copy-btn" onclick="copySources()">📋 复制所有来源链接</button>
+        </div>
+        
+            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [Boosting Vision-Language-Action Finetuning with Feasible Action Neighborhood Prior] (基于可行动作邻域先验的视觉-语言-动作微调增强方法)
+- **研究机构**: `Shanghai Jiao Tong University, Huawei Technologies`
+- **Arxiv ID**: `2604.01570` | [点击跳转](https://arxiv.org/abs/2604.01570)
+
+**0. 论文标题**  
+- **英文标题**: Boosting Vision-Language-Action Finetuning with Feasible Action Neighborhood Prior  
+- **中文标题**: 基于可行动作邻域先验的视觉-语言-动作微调增强方法  
+- **研究机构**: Shanghai Jiao Tong University, Huawei Technologies  
+
+**1. 整体逻辑**  
+- **一句话任务**: 在小样本/稀疏奖励下提升VLA模型对物理动作空间的泛化与鲁棒性  
+- **一句话本质**: 用几何一致的高斯先验强制策略分布局部平滑单峰，取代语言模型惯用的one-hot硬监督或无结构熵正则  
+- **技术溯源**: OpenVLA（Llama2-7B + SigLIP/DINOv2双视觉编码器 + 7-DoF离散动作分桶），未修改基座架构，纯loss层干预  
+
+**2. 技术拆解**  
+- **重点改进**: 引入FAN-guided KL正则项——不是加噪声、不是改采样，而是将策略输出分布强行拉向以当前最优动作为中心、自适应（SFT）或固定（RFT）协方差的高斯分布  
+- **架构细节**: 输入：RGB图像+语言指令；输出：7维离散动作token logits（保持OpenVLA原生autoregressive token预测范式）；无新增模块，不改变参数量、推理延迟、tokenization或decoder逻辑  
+- **核心 Loss**:  
+  - SFT：ℒ = −log π(a*|s,l) + α·DKL(π(·|s,l) ∥ 𝒩(μ(s), Σ(s)))，其中Σ(s) = diag(Varₐ∼π[a])，动态适配当前策略方差  
+  - RFT：ℒ = PPO clip loss − α·DKL(π(·|s,l) ∥ 𝒩(μ(s), σ²I))，σ为超参，固定协方差保障更新稳定性；理论推导证明更新即高斯-旧策略-指数Q值的几何插值  
+
+**3. 实验结果**  
+- **数据集**: ManiSkill（PutOnPlateInScene25Main-v3）、LIBERO-Spatial（10任务×50演示）  
+- **评价指标**: 任务成功率（%），按in-distribution / OOD三类扰动分测：Vision（背景/光照变化）、Semantic（指令同义替换）、Execution（初始状态偏移/执行偏差）；报告均值±std  
+- **实验结果**:  
+  - SFT on ManiSkill：OpenVLA baseline 58.1% → FAN-SFT 63.3%（+5.2 pts），OOD平均提升+5.1 pts（Vision +11.7，Semantic +5.1，Execution +4.4）  
+  - RFT（FAN-PPO）：在相同交互步数下，OOD成功率较标准PPO提升12–17 pts，收敛速度加快2.3×，且小数据（<1K demo）下SFT阶段过拟合崩溃完全消失  
+  - LIBERO-Spatial：空间扰动鲁棒性翻倍——vanilla SFT在±3cm偏移时成功率跌至21%，FAN-SFT维持76%（Δ+55 pts）
+
+---
+
+
+### 2. 🔥 [AnchorVLA: Anchored Diffusion for Efficient End-to-End Mobile Manipulation] (AnchorVLA：面向高效端到端移动操作的锚定扩散策略)
+- **研究机构**: `UQMM Lab, The University of Queensland & Robotics and Autonomous Systems Group, CSIRO`
+- **Arxiv ID**: `2604.01567` | [点击跳转](https://arxiv.org/abs/2604.01567)
+
+**0. 论文标题**  
+- **英文标题**: AnchorVLA: Anchored Diffusion for Efficient End-to-End Mobile Manipulation  
+- **中文标题**: AnchorVLA：面向高效端到端移动操作的锚定扩散策略  
+- **研究机构**: UQMM Lab, The University of Queensland & Robotics and Autonomous Systems Group, CSIRO  
+
+**1. 整体逻辑**  
+- **一句话任务**: 语言指令驱动的、闭环鲁棒的移动操作（腿足/轮式基座 + 机械臂联合控制）  
+- **一句话本质**: 用“锚定轨迹+局部截断去噪”替代全空间迭代扩散，再叠加每步残差微调——把扩散从生成范式降维成高保真局部校准范式  
+- **技术溯源**: 基于 VLA-Adapter（冻结 ViT-22B + LoRA 微调）+ DiT（轻量级扩散Transformer）+ 自建轨迹词表；未用 CLIP/OpenVLA/Llama3，纯机器人动作域适配  
+
+**2. 技术拆解**  
+- **重点改进**:  
+  - 拒绝从纯噪声启动扩散；改用聚类专家轨迹构建 M=16 个锚点（A̅⁽ᵐ⁾∈ℝᴴ×¹³），所有去噪严格约束在锚点邻域内  
+  - 扩散步数从 S→Sₜᵣ=⌊ρS⌋（ρ=0.2），起始噪声直接由 A̅⁽ᵐ⁾加噪生成，非零均值高斯初始化  
+  - 引入双头并行输出：每个锚点输出去噪轨迹 Âₜ⁽ᵐ⁾ + 置信度 s⁽ᵐ⁾，仅选最高分者作为最终动作块  
+  - 在线部署时，对输出的 H-step 动作块逐帧叠加残差修正 Δaₜ₊ⱼ = rψ(oₜ₊ⱼ, ℓ, âₜ₊ⱼ, j)，rψ 是 3 层 MLP（<50k 参数）  
+
+- **架构细节**:  
+  - 输入：单帧多模态观测 oₜ = {head RGB, wrist RGB, 13D 状态向量（含基座位姿/速度、关节角/速、夹爪状态）} + 语言指令 ℓ  
+  - 主干：VLA-Adapter 提取 512D 上下文向量 xₜ；DiT 块采用 Bridge Attention（VLA 特征为 KV，动作查询为 Q）+ AdaLN 调制  
+  - 输出：H=16 步、13-DoF 连续动作块（基座 6D 速度 + 臂 7D 关节目标）；残差模块输入含时间步 j（位置编码）  
+  - 模型规模：VLA 主干冻结，DiT ~48M 参数，残差模块 ~45k 参数；推理延迟 <12ms（RTX 6000 Ada）  
+
+- **核心 Loss**:  
+  - 主 Loss = Σₘ [yₘ‖Âₜ⁽ᵐ⁾−Aₜ⋆‖₁ + λ·BCE(s⁽ᵐ⁾, yₘ)]，其中 yₘ=1 仅当 A̅⁽ᵐ⁾ 是离 Aₜ⋆ L1 最近的锚点  
+  - λ=0.1；无视频重建、无对比学习、无 KL 正则；纯监督式锚点选择 + 去噪重构  
+
+**3. 实验结果**  
+- **数据集**: ManiSkill-HAB（6 个 contact-rich 任务：Pick/Place Apple/Bowl、Open Fridge、Close Counter）+ Real-world Unitree Go2 Edu + SO101 臂（腿足振动强扰动场景）  
+- **评价指标**: 任务成功率（episode-level binary success，200-step horizon 内满足全部几何目标条件）；3 次独立 trial × 100 episodes/task  
+- **实验结果**:  
+  - ManiSkill-HAB 平均成功率 64.0%，超 AC-DiT（SOTA diffusion baseline）8.4% 绝对值，超 π₀（RGB SOTA）21.1%  
+  - 长 chunk（H=32）下仍保持 61.5% 成功率，而 AC-DiT 在同等 H 下成功率暴跌至 49.2%  
+  - Real-world 上 Open Fridge 任务成功率达 73.5%，显著优于 AC-DiT 的 41.0%（腿足抖动导致其扩散漂移失控）  
+  - 消融显示：去锚定 → −12.7%；去残差修正 → −9.4%；截断步数从 S→S/5 → +6.3% 推理吞吐（238 Hz vs 42 Hz）
+
+---
+
+
+### 3. 🔥 [World Action Verifier: Self-Improving World Models via Forward-Inverse Asymmetry] (世界动作验证器：利用前向–逆向不对称性实现自提升的世界模型)
+- **研究机构**: `Stanford University, UC San Diego, Carnegie Mellon University, Google DeepMind, Harvard University`
+- **Arxiv ID**: `2604.01985` | [点击跳转](https://arxiv.org/abs/2604.01985)
+
+**0. 论文标题**  
+- **英文标题**: World Action Verifier: Self-Improving World Models via Forward-Inverse Asymmetry  
+- **中文标题**: 世界动作验证器：利用前向–逆向不对称性实现自提升的世界模型  
+- **研究机构**: Stanford University, UC San Diego, Carnegie Mellon University, Google DeepMind, Harvard University  
+
+**1. 整体逻辑**  
+- **一句话任务**: 在极稀疏动作标注下，提升世界模型对任意（尤其非最优）动作的泛化鲁棒性。  
+- **一句话本质**: 不预测“动作→状态”，而用“状态→动作→状态”闭环验证预测一致性；把不可靠的前向生成，降维为可验证的逆向锚定。  
+- **技术溯源**: 无开源基座复用；纯原创架构：基于 MiniGrid/RoboMimic/ManiSkill 的自研世界模型（fθ）、视频预训练子目标生成器（pϕ）、稀疏逆动力学模型（hψ）；理论根植于因果潜变量分解（TLCM）与可识别性分析。  
+
+**2. 技术拆解**  
+- **重点改进**: 彻底抛弃“预测即验证”的幻觉——用两个轻量、异构、不对称的验证器替代单一前向模型：① 视频驱动的子目标生成器（plausibility prior），覆盖广但无动作约束；② 稀疏逆模型（action-reachability verifier），仅在低维动作相关潜空间（𝒮）上建模逆映射，mask M 可学习。  
+- **架构细节**: 输入：当前状态 sᵗ；输出：K 个子目标 s̃ᵗ⁺¹ ∼ pϕ(·|sᵗ) → 推断动作 âᵗ = hψ(M⊙sᵗ, M⊙s̃ᵗ⁺¹) → 前向 rollout ŝᵗ⁺¹ = fθ(sᵗ, âᵗ) → 验证误差 ℓ(s̃ᵗ⁺¹, ŝᵗ⁺¹)；fθ 为 CNN+Transformer 动态预测器（MiniGrid: 12M；RoboMimic: 48M）；hψ 为双流 MLP（输入维度 2d_z ≪ d_s）；pϕ 为基于视频的条件扩散或 VQ-VAE 先验。  
+- **核心 Loss**: 主 Loss 是标准 L2 state reconstruction（fθ） + 逆动力学 MSE（hψ）；无显式辅助重建 loss；验证信号完全来自 cycle consistency error ℓ(s̃ᵗ⁺¹, ŝᵗ⁺¹)，该 error 直接驱动探索采样（Algorithm 1），不参与梯度回传。  
+
+**3. 实验结果**  
+- **数据集**: MiniGrid（9 个 OOD 物体/布局变体）、RoboMimic（Lift、Can）、ManiSkill（Plug USB、Open Cabinet）；共 9 个任务。  
+- **评价指标**: ① 世界模型精度：state L2 error on held-out transitions；② 样本效率：达到相同误差所需动作标注数；③ 下游策略性能：rollout-based policy optimization（DreamerV3）最终成功率。  
+- **实验结果**: 相比 Uncertainty/Ensemble/Random 探索 baseline：① 世界模型样本效率提升 2.1×（相同误差下仅需 47% 标注数据）；② 在 MiniGrid OOD 上状态误差降低 3.8×；③ RoboMimic Lift 任务策略成功率从 62% → 73%（+11pp），ManiSkill Plug USB 从 38% → 56%（+18pp）；理论预测的三大增益因子（d_s/d_z、σ_s/σ_a、n 小）全部被消融实验证实。
+
+---
+
+
+### 4. 🔥 [DriveDreamer-Policy: A Geometry-Grounded World–Action Model for Unified Generation and Planning] (DriveDreamer-Policy：一种几何锚定的世界–动作模型，实现生成与规划的统一)
+- **研究机构**: `GigaAI, University of Toronto, CUHK MMLab`
+- **Arxiv ID**: `2604.01765` | [点击跳转](https://arxiv.org/abs/2604.01765)
+
+**0. 论文标题**  
+- **英文标题**: DriveDreamer-Policy: A Geometry-Grounded World–Action Model for Unified Generation and Planning  
+- **中文标题**: DriveDreamer-Policy：一种几何锚定的世界–动作模型，实现生成与规划的统一  
+- **研究机构**: GigaAI, University of Toronto, CUHK MMLab  
+
+**1. 整体逻辑**  
+- **一句话任务**: 给定多视角图像+语言指令，同步生成深度图、未来9帧视频、未来轨迹（x,y,cosθ,sinθ）  
+- **一句话本质**: 用显式单目深度作为3D几何 scaffold，强制构建 depth→video→action 的因果信息流，取代纯2D/latent世界建模  
+- **技术溯源**: Qwen3-VL-2B（LLM backbone）、PPD（xu2025pixelperfectdepth）初始化深度头、Wan-2.1-T2V-1.3B（wan2025wan）初始化视频头、CLIP-ViT-L（radford2021clip）提供视觉条件  
+
+**2. 技术拆解**  
+- **重点改进**: 拆解“世界”为三阶显式表征——depth（3D geometry）、video（2D appearance）、action（1D control），通过固定尺寸 query token + 严格因果 attention mask（depth queries → video queries → action queries）硬编码几何优先级  
+- **架构细节**: LLM处理文本+多视图RGB+当前动作 → 输出三组 query embeddings（各64 token）；深度头为 pixel-space diffusion transformer（144×256输入）；视频头为 latent-space DiT（VAE压缩后9帧）；动作头为 diffusion transformer（连续轨迹，非token离散化）；所有生成器共享同一组 world/action embedding 作 cross-attention condition  
+- **核心 Loss**: 单阶段联合 flow-matching loss：ℒ = 0.1ℒ<sub>depth</sub> + ℒ<sub>video</sub> + ℒ<sub>action</sub>；depth label来自Depth Anything 3（DA3）；video GT为真实未来帧；action GT为专家演示轨迹；无重建辅助任务，无KL正则，无reward modeling  
+
+**3. 实验结果**  
+- **数据集**: Navsim v1 & v2（real-world surround-view logs，navtrain训练/ navtest测试，100k/12k样本）  
+- **评价指标**: 规划用PDMS/EPDMS（加权安全+舒适+合规项）；生成用FVD/LPIPS/PSNR（视频）、AbsRel/δ<sub>1,2,3</sub>（深度）  
+- **实验结果**: Navsim v1 PDMS 89.2（+1.1 vs PWM），v2 EPDMS 88.7（+2.6 vs PWM）；FVD 53.59（−32.36 vs PWM）；AbsRel 8.1%（−1.2% vs fine-tuned PPD）；depth ablation证明移除深度模块导致EPDMS下降3.4点，FVD恶化21.7点——几何 scaffold 不是锦上添花，而是规划鲁棒性瓶颈
+
+---
+</script>
+            <script>
+                const rawMdElement = document.getElementById('raw-markdown');
+                if (rawMdElement) { document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent); }
+                function copySources() {
+                    const textArea = document.getElementById('sources-text');
+                    textArea.select();
+                    document.execCommand('copy');
+                    alert('已复制链接');
+                }
+            </script>
+        </body>
+        </html>
+        
