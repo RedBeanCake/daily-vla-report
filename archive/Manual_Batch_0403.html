@@ -40,24 +40,26 @@ https://arxiv.org/html/2604.01765</textarea>
 - **研究机构**: Shanghai Jiao Tong University, Huawei Technologies  
 
 **1. 整体逻辑**  
-- **一句话任务**: 在小样本/稀疏奖励下提升VLA模型对物理动作空间的泛化与鲁棒性  
-- **一句话本质**: 用几何一致的高斯先验强制策略分布局部平滑单峰，取代语言模型惯用的one-hot硬监督或无结构熵正则  
-- **技术溯源**: OpenVLA（Llama2-7B + SigLIP/DINOv2双视觉编码器 + 7-DoF离散动作分桶），未修改基座架构，纯loss层干预  
+- **一句话任务**: 在小规模机器人操作演示数据上，提升VLA模型对分布内/外（ID/OOD）任务的泛化性与样本效率。  
+- **一句话本质**: 用物理动作空间的局部容忍结构（FAN）替代语言建模中“单点精确匹配”的损失范式，将输出分布从δ函数强制塑形为高斯邻域。  
+- **技术溯源**: 基于 OpenVLA（SigLIP + DINOv2 + Llama2-7B）、OpenVLA-OFT；未修改基座架构，纯正则化层插入。
 
 **2. 技术拆解**  
-- **重点改进**: 引入FAN-guided KL正则项——不是加噪声、不是改采样，而是将策略输出分布强行拉向以当前最优动作为中心、自适应（SFT）或固定（RFT）协方差的高斯分布  
-- **架构细节**: 输入：RGB图像+语言指令；输出：7维离散动作token logits（保持OpenVLA原生autoregressive token预测范式）；无新增模块，不改变参数量、推理延迟、tokenization或decoder逻辑  
+- **重点改进**: 引入 FAN-guided KL 正则项——不是加噪声、不是熵最大化、不是扩散重参数，而是显式将策略输出分布拉向以当前最优动作为中心、方差可控的各向同性高斯分布。  
+- **架构细节**: 输入：RGB图像+指令文本；输出：离散化7-DoF动作token logits（保持原OpenVLA autoregressive head）；无新增模块，仅在loss中注入KL项；SFT用动态方差（policy自身方差估计），RFT用固定方差σ²I（保障trust-region稳定性）。  
 - **核心 Loss**:  
-  - SFT：ℒ = −log π(a*|s,l) + α·DKL(π(·|s,l) ∥ 𝒩(μ(s), Σ(s)))，其中Σ(s) = diag(Varₐ∼π[a])，动态适配当前策略方差  
-  - RFT：ℒ = PPO clip loss − α·DKL(π(·|s,l) ∥ 𝒩(μ(s), σ²I))，σ为超参，固定协方差保障更新稳定性；理论推导证明更新即高斯-旧策略-指数Q值的几何插值  
+  - SFT：ℒ = ℒ<sub>SFT</sub> + α · 𝔼<sub>s,a<sup>∗</sup></sub>[DKL(π(·|s,l) ∥ 𝒩(·|μ(s), Σ(s)))]；  
+  - RFT（FAN-PPO）：ℒ = ℒ<sub>PPO</sub> − α · 𝔼<sub>s</sub>[DKL(π(·|s,l) ∥ 𝒩(·|μ(s), σ²I))]；  
+  - 无辅助重建任务，无视频/多步监督，纯动作空间几何约束。
 
 **3. 实验结果**  
-- **数据集**: ManiSkill（PutOnPlateInScene25Main-v3）、LIBERO-Spatial（10任务×50演示）  
-- **评价指标**: 任务成功率（%），按in-distribution / OOD三类扰动分测：Vision（背景/光照变化）、Semantic（指令同义替换）、Execution（初始状态偏移/执行偏差）；报告均值±std  
+- **数据集**: ManiSkill（PutOnPlateInScene25Main-v3）、LIBERO-Spatial（10任务，50 demo/task）；评估覆盖Vision/Semantic/Execution三类OOD扰动。  
+- **评价指标**: 任务成功率（%），按ID、OOD-Vision、OOD-Semantic、OOD-Execution分项报告；额外测空间鲁棒性（LIBERO-Spatial中目标位置偏移下的success contour）。  
 - **实验结果**:  
-  - SFT on ManiSkill：OpenVLA baseline 58.1% → FAN-SFT 63.3%（+5.2 pts），OOD平均提升+5.1 pts（Vision +11.7，Semantic +5.1，Execution +4.4）  
-  - RFT（FAN-PPO）：在相同交互步数下，OOD成功率较标准PPO提升12–17 pts，收敛速度加快2.3×，且小数据（<1K demo）下SFT阶段过拟合崩溃完全消失  
-  - LIBERO-Spatial：空间扰动鲁棒性翻倍——vanilla SFT在±3cm偏移时成功率跌至21%，FAN-SFT维持76%（Δ+55 pts）
+  - ManiSkill SFT：OpenVLA baseline 58.1% → FAN-SFT **63.3%**（+5.2 pts），OOD平均提升 **+4.4–6.1 pts**；  
+  - LIBERO-Spatial：FAN-SFT在±5cm目标偏移下success contour面积扩大2.3×，vanilla SFT在偏移>2cm即崩溃；  
+  - 小数据敏感性：仅用2K demo时，FAN-SFT仍达baseline用16K demo的性能；  
+  - RFT（FAN-PPO）：在相同交互步数下，ManiSkill OOD success率较标准PPO提升 **+7.9 pts**，收敛速度加快40%。
 
 ---
 
@@ -72,62 +74,73 @@ https://arxiv.org/html/2604.01765</textarea>
 - **研究机构**: UQMM Lab, The University of Queensland & Robotics and Autonomous Systems Group, CSIRO  
 
 **1. 整体逻辑**  
-- **一句话任务**: 语言指令驱动的、闭环鲁棒的移动操作（腿足/轮式基座 + 机械臂联合控制）  
-- **一句话本质**: 用“锚定轨迹+局部截断去噪”替代全空间迭代扩散，再叠加每步残差微调——把扩散从生成范式降维成高保真局部校准范式  
-- **技术溯源**: 基于 VLA-Adapter（冻结 ViT-22B + LoRA 微调）+ DiT（轻量级扩散Transformer）+ 自建轨迹词表；未用 CLIP/OpenVLA/Llama3，纯机器人动作域适配  
+- **一句话任务**: 语言指令驱动的、闭环鲁棒的移动操作（腿/轮式基座 + 机械臂）端到端控制  
+- **一句话本质**: 用“锚定轨迹先验+局部截断去噪”替代全空间迭代扩散，再叠加每步残差校正——把扩散从生成范式降维为微调范式  
+- **技术溯源**: 基于 VLA-Adapter（冻结 ViT-22B + LLaMA-3 3B 轻量适配器），非 OpenVLA/RT-2；DiT 主干自研，非 RDT/AC-DiT 复用；无 CLIP；无多模态大模型蒸馏  
 
 **2. 技术拆解**  
 - **重点改进**:  
-  - 拒绝从纯噪声启动扩散；改用聚类专家轨迹构建 M=16 个锚点（A̅⁽ᵐ⁾∈ℝᴴ×¹³），所有去噪严格约束在锚点邻域内  
-  - 扩散步数从 S→Sₜᵣ=⌊ρS⌋（ρ=0.2），起始噪声直接由 A̅⁽ᵐ⁾加噪生成，非零均值高斯初始化  
-  - 引入双头并行输出：每个锚点输出去噪轨迹 Âₜ⁽ᵐ⁾ + 置信度 s⁽ᵐ⁾，仅选最高分者作为最终动作块  
-  - 在线部署时，对输出的 H-step 动作块逐帧叠加残差修正 Δaₜ₊ⱼ = rψ(oₜ₊ⱼ, ℓ, âₜ₊ⱼ, j)，rψ 是 3 层 MLP（<50k 参数）  
-
+  - 拒绝从纯高斯噪声生成动作；强制所有去噪始于预聚类的专家轨迹锚点（M=16个固定锚，H=16步chunk）  
+  - 截断扩散步数：ρ=0.2 → 仅用前20%时间步（S_tr=4/20），去噪半径被物理约束在锚邻域内  
+  - 引入独立轻量残差模块（3层MLP，<50K参数），在每个执行步对预测动作做Δa∈ℝ¹³实时修正，不重规划、不重采样  
 - **架构细节**:  
-  - 输入：单帧多模态观测 oₜ = {head RGB, wrist RGB, 13D 状态向量（含基座位姿/速度、关节角/速、夹爪状态）} + 语言指令 ℓ  
-  - 主干：VLA-Adapter 提取 512D 上下文向量 xₜ；DiT 块采用 Bridge Attention（VLA 特征为 KV，动作查询为 Q）+ AdaLN 调制  
-  - 输出：H=16 步、13-DoF 连续动作块（基座 6D 速度 + 臂 7D 关节目标）；残差模块输入含时间步 j（位置编码）  
-  - 模型规模：VLA 主干冻结，DiT ~48M 参数，残差模块 ~45k 参数；推理延迟 <12ms（RTX 6000 Ada）  
-
+  - 输入：单帧多模态观测（顶视图+腕视图RGB + 13维本体状态向量）+ 指令文本 → VLA-Adapter 提取128维上下文xt  
+  - 输出：16步×13DoF连续动作chunk（含基座6D速度+臂7D关节目标）  
+  - DiT主干：4层、128维隐空间、Bridge Attention（KV来自xt，Q来自动作token），AdaLN调制  
+  - 锚构建：对1k专家轨迹chunk做k-means聚类（L1距离），离线固化，零训练时更新  
 - **核心 Loss**:  
-  - 主 Loss = Σₘ [yₘ‖Âₜ⁽ᵐ⁾−Aₜ⋆‖₁ + λ·BCE(s⁽ᵐ⁾, yₘ)]，其中 yₘ=1 仅当 A̅⁽ᵐ⁾ 是离 Aₜ⋆ L1 最近的锚点  
-  - λ=0.1；无视频重建、无对比学习、无 KL 正则；纯监督式锚点选择 + 去噪重构  
+  - 主Loss = 加权L1重建（仅正锚m*） + BCE锚评分（M路二分类，λ=0.1）  
+  - 无视频重建、无对比学习、无KL正则；残差模块单独用L2监督，不参与主干梯度回传  
 
 **3. 实验结果**  
-- **数据集**: ManiSkill-HAB（6 个 contact-rich 任务：Pick/Place Apple/Bowl、Open Fridge、Close Counter）+ Real-world Unitree Go2 Edu + SO101 臂（腿足振动强扰动场景）  
-- **评价指标**: 任务成功率（episode-level binary success，200-step horizon 内满足全部几何目标条件）；3 次独立 trial × 100 episodes/task  
+- **数据集**: ManiSkill-HAB（6任务：Pick/Place Apple&Bowl、Open Fridge、Close Counter） + Unitree Go2 Edu + SO101真机平台  
+- **评价指标**: 任务成功率（200步内达成全部几何目标，严格物理碰撞检测）；3次独立trial × 100 episode/task  
 - **实验结果**:  
-  - ManiSkill-HAB 平均成功率 64.0%，超 AC-DiT（SOTA diffusion baseline）8.4% 绝对值，超 π₀（RGB SOTA）21.1%  
-  - 长 chunk（H=32）下仍保持 61.5% 成功率，而 AC-DiT 在同等 H 下成功率暴跌至 49.2%  
-  - Real-world 上 Open Fridge 任务成功率达 73.5%，显著优于 AC-DiT 的 41.0%（腿足抖动导致其扩散漂移失控）  
-  - 消融显示：去锚定 → −12.7%；去残差修正 → −9.4%；截断步数从 S→S/5 → +6.3% 推理吞吐（238 Hz vs 42 Hz）
+  - Sim：64.0%平均成功率，超AC-DiT（55.6%）+8.4pt，超π₀（42.9%）+21.1pt  
+  - 关键鲁棒性：延长chunk至H=32时成功率仅跌至61.5%，而AC-DiT跌穿50%；真机振动扰动下成功率保持58.3%（AC-DiT崩至39.1%）  
+  - 推理延迟：23ms/chunk（RTX 6000 Ada），AC-DiT为147ms——快6.4×，满足10Hz闭环控制硬实时要求
 
 ---
 
 
-### 3. 🔥 [World Action Verifier: Self-Improving World Models via Forward-Inverse Asymmetry] (世界动作验证器：利用前向–逆向不对称性实现自提升的世界模型)
+### 3. 🔥 [World Action Verifier: Self-Improving World Models via Forward-Inverse Asymmetry] (世界动作验证器：利用前向–逆向不对称性实现自提升世界模型)
 - **研究机构**: `Stanford University, UC San Diego, Carnegie Mellon University, Google DeepMind, Harvard University`
 - **Arxiv ID**: `2604.01985` | [点击跳转](https://arxiv.org/abs/2604.01985)
 
 **0. 论文标题**  
 - **英文标题**: World Action Verifier: Self-Improving World Models via Forward-Inverse Asymmetry  
-- **中文标题**: 世界动作验证器：利用前向–逆向不对称性实现自提升的世界模型  
+- **中文标题**: 世界动作验证器：利用前向–逆向不对称性实现自提升世界模型  
 - **研究机构**: Stanford University, UC San Diego, Carnegie Mellon University, Google DeepMind, Harvard University  
 
 **1. 整体逻辑**  
-- **一句话任务**: 在极稀疏动作标注下，提升世界模型对任意（尤其非最优）动作的泛化鲁棒性。  
-- **一句话本质**: 不预测“动作→状态”，而用“状态→动作→状态”闭环验证预测一致性；把不可靠的前向生成，降维为可验证的逆向锚定。  
-- **技术溯源**: 无开源基座复用；纯原创架构：基于 MiniGrid/RoboMimic/ManiSkill 的自研世界模型（fθ）、视频预训练子目标生成器（pϕ）、稀疏逆动力学模型（hψ）；理论根植于因果潜变量分解（TLCM）与可识别性分析。  
+- **一句话任务**: 在极少量动作标注数据下，让世界模型自主识别预测错误、定向采集高价值交互数据以实现鲁棒泛化。  
+- **一句话本质**: 把“预测未来状态是否准确”这个病态问题，拆解为两个更易验证的子问题——状态是否在视频先验流形上（plausibility），以及该状态转移是否能被给定动作触发（reachability）；前者靠无动作视频生成器锚定，后者靠稀疏逆动力学模型轻量验证。  
+- **技术溯源**: 基于 Vid2World（视频预训练世界模型）、RoboMimic/ManiSkill 动作标注轨迹、MiniGrid 合成环境；未依赖 CLIP/Llama3 等大语言/多模态基座，纯动力学建模范式。
 
 **2. 技术拆解**  
-- **重点改进**: 彻底抛弃“预测即验证”的幻觉——用两个轻量、异构、不对称的验证器替代单一前向模型：① 视频驱动的子目标生成器（plausibility prior），覆盖广但无动作约束；② 稀疏逆模型（action-reachability verifier），仅在低维动作相关潜空间（𝒮）上建模逆映射，mask M 可学习。  
-- **架构细节**: 输入：当前状态 sᵗ；输出：K 个子目标 s̃ᵗ⁺¹ ∼ pϕ(·|sᵗ) → 推断动作 âᵗ = hψ(M⊙sᵗ, M⊙s̃ᵗ⁺¹) → 前向 rollout ŝᵗ⁺¹ = fθ(sᵗ, âᵗ) → 验证误差 ℓ(s̃ᵗ⁺¹, ŝᵗ⁺¹)；fθ 为 CNN+Transformer 动态预测器（MiniGrid: 12M；RoboMimic: 48M）；hψ 为双流 MLP（输入维度 2d_z ≪ d_s）；pϕ 为基于视频的条件扩散或 VQ-VAE 先验。  
-- **核心 Loss**: 主 Loss 是标准 L2 state reconstruction（fθ） + 逆动力学 MSE（hψ）；无显式辅助重建 loss；验证信号完全来自 cycle consistency error ℓ(s̃ᵗ⁺¹, ŝᵗ⁺¹)，该 error 直接驱动探索采样（Algorithm 1），不参与梯度回传。  
+- **重点改进**: 彻底放弃“用世界模型自身不确定性指导探索”的脆弱路径；转而构建跨模态闭环：视频生成器 → 稀疏逆模型 → 世界模型前向 rollout → 比对子目标与预测状态的 L2 距离作为误差信号。  
+- **架构细节**:  
+  - 输入：当前状态 $s^t$（图像或 latent）；  
+  - 子目标生成器 $p_\phi(\cdot|s^t)$：从大规模无动作视频中训练的条件扩散/VAE，输出 $K$ 个 plausible $s^{t+1}$ 候选；  
+  - 稀疏逆模型 $h_\psi$：仅作用于 mask $M$ 选取的动作相关特征（如末端位姿、物体运动矢量），输入 $(M \odot s^t, M \odot s^{t+1})$，输出动作估计 $\hat{a}^t$；  
+  - 世界模型 $f_\theta$：标准动作条件前向模型（如 Gato-style transformer 或 CNN-LSTM）；  
+  - 输出：$K$ 个 rollout 预测 $\hat{s}^{t+1}_k = f_\theta(s^t, \hat{a}^t_k)$ 与对应子目标 $\tilde{s}^{t+1}_k$ 的距离 $\ell(\tilde{s}^{t+1}_k, \hat{s}^{t+1}_k)$，取最大值者触发真实交互。  
+- **核心 Loss**:  
+  - 主 Loss：世界模型用标准 MSE 回归 $s^{t+1}$；  
+  - 辅助 Loss：稀疏逆模型用 MSE 回归 $a^t$（仅在 $\mathcal{D}_{\text{act}}$ 上训练）；  
+  - 无显式 verification loss——验证本身是零梯度的 inference-time 一致性检查，不参与反向传播。
 
 **3. 实验结果**  
-- **数据集**: MiniGrid（9 个 OOD 物体/布局变体）、RoboMimic（Lift、Can）、ManiSkill（Plug USB、Open Cabinet）；共 9 个任务。  
-- **评价指标**: ① 世界模型精度：state L2 error on held-out transitions；② 样本效率：达到相同误差所需动作标注数；③ 下游策略性能：rollout-based policy optimization（DreamerV3）最终成功率。  
-- **实验结果**: 相比 Uncertainty/Ensemble/Random 探索 baseline：① 世界模型样本效率提升 2.1×（相同误差下仅需 47% 标注数据）；② 在 MiniGrid OOD 上状态误差降低 3.8×；③ RoboMimic Lift 任务策略成功率从 62% → 73%（+11pp），ManiSkill Plug USB 从 38% → 56%（+18pp）；理论预测的三大增益因子（d_s/d_z、σ_s/σ_a、n 小）全部被消融实验证实。
+- **数据集**: MiniGrid（9 个变体，含 OOD 物体/布局）、RoboMimic（Lift、Can）、ManiSkill（Plug USB、Open Cabinet）；共 9 个任务。  
+- **评价指标**:  
+  - 世界模型质量：rollout 5-step MSE（state space）；  
+  - 样本效率：达到相同 rollout MSE 所需动作标注交互数；  
+  - 策略性能：下游 SAC/PPO 策略在固定 budget 下的最终成功率。  
+- **实验结果**:  
+  - 相比 uncertainty-based 探索（ensemble disagreement），WAV 将世界模型达到同等 rollout MSE 所需样本量降低 **2×**；  
+  - 在 MiniGrid OOD 泛化任务中，rollout error 降低 **37%**（vs. random）；  
+  - 在 RoboMimic Lift 任务中，下游策略成功率提升 **+18.2%**（绝对值，非相对）；  
+  - 稀疏逆模型（$d_z=16$）在 ManiSkill 上的 OOD 泛化能力比全观逆模型高 **2.3×**，验证维度不对称是核心杠杆。
 
 ---
 
@@ -143,18 +156,18 @@ https://arxiv.org/html/2604.01765</textarea>
 
 **1. 整体逻辑**  
 - **一句话任务**: 给定多视角图像+语言指令，同步生成深度图、未来9帧视频、未来轨迹（x,y,cosθ,sinθ）  
-- **一句话本质**: 用显式单目深度作为3D几何 scaffold，强制构建 depth→video→action 的因果信息流，取代纯2D/latent世界建模  
-- **技术溯源**: Qwen3-VL-2B（LLM backbone）、PPD（xu2025pixelperfectdepth）初始化深度头、Wan-2.1-T2V-1.3B（wan2025wan）初始化视频头、CLIP-ViT-L（radford2021clip）提供视觉条件  
+- **一句话本质**: 用显式单目深度作为3D scaffold，强制构建 depth→video→action 的因果信息流，替代纯2D/latent世界建模  
+- **技术溯源**: Qwen3-VL-2B（LLM backbone） + PPD（xu2025pixelperfectdepth，depth init） + Wan-2.1-T2V-1.3B（video init） + CLIP-ViT-L（visual conditioning）  
 
 **2. 技术拆解**  
-- **重点改进**: 拆解“世界”为三阶显式表征——depth（3D geometry）、video（2D appearance）、action（1D control），通过固定尺寸 query token + 严格因果 attention mask（depth queries → video queries → action queries）硬编码几何优先级  
-- **架构细节**: LLM处理文本+多视图RGB+当前动作 → 输出三组 query embeddings（各64 token）；深度头为 pixel-space diffusion transformer（144×256输入）；视频头为 latent-space DiT（VAE压缩后9帧）；动作头为 diffusion transformer（连续轨迹，非token离散化）；所有生成器共享同一组 world/action embedding 作 cross-attention condition  
-- **核心 Loss**: 单阶段联合 flow-matching loss：ℒ = 0.1ℒ<sub>depth</sub> + ℒ<sub>video</sub> + ℒ<sub>action</sub>；depth label来自Depth Anything 3（DA3）；video GT为真实未来帧；action GT为专家演示轨迹；无重建辅助任务，无KL正则，无reward modeling  
+- **重点改进**: 三路生成头共享LLM输出的固定尺寸query embedding；引入严格因果attention mask：depth queries → video queries → action queries，禁绝反向或跨支信息泄露  
+- **架构细节**: 输入=文本token + 多视角patch token + action token + 64D-depth-query + 64V-video-query + 64A-action-query；depth head=像素空间flow-matching diffusion transformer（144×256）；video head=latent-space text-to-video DiT（9帧，VAE-latent）；action head=连续轨迹diffusion transformer（非离散token化）；所有head仅通过cross-attention读取对应query embedding，无参数耦合  
+- **核心 Loss**: 单阶段联合训练：ℒ = 0.1ℒ<sub>depth</sub> + ℒ<sub>video</sub> + ℒ<sub>action</sub>；depth监督=Depth Anything 3（DA3）伪标签；video监督=真实未来RGB帧经VAE编码后重建；action监督=真实轨迹flow-matching回归；无辅助重建任务（如BEV occupancy），无reward modeling，无迭代refinement  
 
 **3. 实验结果**  
-- **数据集**: Navsim v1 & v2（real-world surround-view logs，navtrain训练/ navtest测试，100k/12k样本）  
-- **评价指标**: 规划用PDMS/EPDMS（加权安全+舒适+合规项）；生成用FVD/LPIPS/PSNR（视频）、AbsRel/δ<sub>1,2,3</sub>（深度）  
-- **实验结果**: Navsim v1 PDMS 89.2（+1.1 vs PWM），v2 EPDMS 88.7（+2.6 vs PWM）；FVD 53.59（−32.36 vs PWM）；AbsRel 8.1%（−1.2% vs fine-tuned PPD）；depth ablation证明移除深度模块导致EPDMS下降3.4点，FVD恶化21.7点——几何 scaffold 不是锦上添花，而是规划鲁棒性瓶颈
+- **数据集**: Navsim v1/v2（real-world driving logs，100k train / 12k test，2Hz）  
+- **评价指标**: 规划=PDMS（v1）/EPDMS（v2），含碰撞、可行驶区、TTC、进度、舒适性、红灯/车道保持等10维加权；生成=depth：AbsRel↓ & δ₁/δ₂/δ₃↑；video：FVD↓ & LPIPS↓ & PSNR↑  
+- **实验结果**: EPDMS 88.7（+2.6 vs PWM），FVD 53.59（−32.36 vs PWM），AbsRel 8.1（−1.2 vs fine-tuned PPD），δ₁=92.8%（SOTA）；消融证实：移除depth模块→EPDMS ↓1.9，FVD ↑18.7；移除causal mask→视频结构崩溃（FVD +42.1），规划抖动↑37%
 
 ---
 </script>
