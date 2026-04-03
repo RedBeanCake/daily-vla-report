@@ -124,7 +124,8 @@ def only_filter_and_report(papers):
 
     report = "📊 **今日具身智能论文初筛建议**\n"
     report += "请复制 ID 到 GitHub 手动触发解析：\n\n"
-    report += f"👉 [点击去手动触发解析]({GITHUB_PAGES_URL.replace('.io/', '.com/').replace(repo_name, repo_name + '/actions')})\n\n"
+    actions_url = f"https://github.com/{repo_owner}/{repo_name}/actions"
+    report += f"👉 [点击去手动触发解析]({actions_url})\n\n"
     for p in recommendations:
         report += f"- `ID: {p['id']}` | 分数: {p['score']} | {p.get('title_zh', '无标题')}\n"
     return report
