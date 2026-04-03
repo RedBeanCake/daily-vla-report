@@ -285,16 +285,31 @@ def generate_archive_and_index(date_info, arxiv_content):
             with open(f"archive/{f_name}", "r", encoding="utf-8") as hf:
                 file_soup = BeautifulSoup(hf.read(), 'html.parser')
                 full_title = file_soup.title.string.replace("🤖 具身大模型简报 - ", "")
+                
+                # 1. 尝试匹配标准 Arxiv 日期
                 date_match = re.search(r'([A-Za-z]{3}, \d{1,2} [A-Za-z]{3} \d{4})', full_title)
+                
                 if date_match:
                     date_obj = datetime.datetime.strptime(date_match.group(1), "%a, %d %b %Y")
-                    indexed_history.append((date_obj, full_title, f_name))
-        except: continue
+                elif "Manual_Batch" in f_name:
+                    # 2. 如果是手动模式，从文件名提取日期 (例如 Manual_Batch_0403 -> 04月03日)
+                    date_str = f_name.replace("Manual_Batch_", "").replace(".html", "")
+                    # 假设是当年，手动构造一个 datetime 对象用于排序
+                    date_obj = datetime.datetime.strptime(date_str, "%m%d").replace(year=datetime.datetime.now().year)
+                else:
+                    # 3. 兜底方案：使用文件的最后修改时间
+                    date_obj = datetime.datetime.fromtimestamp(os.path.getmtime(f"archive/{f_name}"))
+                
+                # 确保只要解析出 date_obj，就加入索引列表
+                indexed_history.append((date_obj, full_title, f_name))
+        except Exception as e:
+            print(f"解析历史文件 {f_name} 出错: {e}")
+            continue
 
     indexed_history.sort(key=lambda x: x[0], reverse=True)
     index_md = "### 📅 历史存档列表\n\n"
-    for _, display_title, f_name in indexed_history:
-        index_md += f"- [{display_title}](archive/{f_name})\n"
+    for _, hist_title, f_name in indexed_history:
+        index_md += f"- [{hist_title}](archive/{f_name})\n"
     
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(get_html_template("📚 具身大模型科研日报 - 历史索引", index_md, True))
