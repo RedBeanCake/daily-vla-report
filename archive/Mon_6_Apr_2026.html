@@ -1,0 +1,131 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+            <title>🤖 具身大模型简报 - Mon, 6 Apr 2026 (VLA: 3 of 40 entries)</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <style>
+                html, body { -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+                .sources-box { margin-top: 50px; padding: 20px; background: #f6f8fa; border: 1px dashed #d0d7de; border-radius: 10px; }
+                .sources-box textarea { width: 100%; height: 100px; margin: 10px 0; padding: 10px; font-family: monospace; font-size: 12px; border: 1px solid #d0d7de; border-radius: 6px; resize: none; }
+                .copy-btn { background-color: #2da44e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+            </style>
+        </head>
+        <body class="markdown-body">
+            <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
+            <h1>🤖 具身大模型简报 - Mon, 6 Apr 2026 (VLA: 3 of 40 entries)</h1>
+            <div id="content"></div>
+            
+        <div class="sources-box">
+            <h3>🔗 NotebookLM Sources 集合区 (共 3 篇)</h3>
+            <textarea id="sources-text" readonly>https://arxiv.org/html/2604.03191
+https://arxiv.org/html/2604.03181
+https://arxiv.org/html/2604.02965</textarea>
+            <button class="copy-btn" onclick="copySources()">📋 复制所有来源链接</button>
+        </div>
+        
+            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [The Compression Gap: Why Discrete Tokenization Limits Vision-Language-Action Model Scaling] (压缩鸿沟：离散化动作表征如何扼杀视觉-语言-动作模型的可扩展性)
+- **研究机构**: `Shibattic Inc.`
+- **Arxiv ID**: `2604.03191` | [点击跳转](https://arxiv.org/abs/2604.03191)
+
+**0. 论文标题**  
+- **英文标题**: The Compression Gap: Why Discrete Tokenization Limits Vision-Language-Action Model Scaling  
+- **中文标题**: 压缩鸿沟：离散化动作表征如何扼杀视觉-语言-动作模型的可扩展性  
+- **研究机构**: Shibattic Inc.
+
+**1. 整体逻辑**  
+- **研究任务**: 评估视觉编码器升级对下游机器人操作性能的迁移有效性  
+- **研究动机**: 发现“升级视觉编码器必提性能”这一VLA领域默认假设在离散动作表征中彻底失效——不是效果差，而是信息被截断  
+- **本质改动**: 揭示并命名“压缩鸿沟（Compression Gap）”：动作表征类型决定信息瓶颈位置；连续路径瓶颈在视觉编码器，离散路径瓶颈在固定容量码本，前者升级有效，后者升级无效  
+- **技术溯源**: 基于OAT（Liu et al., 2026）、Diffusion Policy（Chi et al., 2025）、FSQ（Mentzer et al., 2023）、SigLIP/DINOv2/ResNet-18等开源组件，无自研主干，纯信息流归因实验  
+
+**2. 技术拆解**  
+- **重点改进**: 零算法创新——仅将同一套训练框架、同一骨干、同一数据流，强制切换为两种动作表征路径，做控制变量归因  
+- **架构细节**: 输入：RGB+state观测序列（$o_{1:H_o}$）；共享视觉编码器$f_{\text{enc}}$输出连续特征$Z$；DP路径：$Z$直连扩散去噪网络$\epsilon_\theta$，输出32维连续动作块；OAT路径：$Z$先经FSQ量化为8 token序列（$|\mathcal{V}|=1000$），再由自回归Transformer解码；所有实验用相同transformer decoder规模（M/L两级）  
+- **核心 Loss**: DP用标准扩散L2重建loss；OAT用token交叉熵+动作重建L2辅助loss；二者均无显式信息瓶颈正则项——瓶颈是架构硬约束，非训练目标引入  
+
+**3. 实验结果**  
+- **数据集和baseline**: LIBERO-10（10个Franka Panda操作任务，50演示/任务）；baseline为同代码库、同超参下的OAT与Diffusion Policy双基线  
+- **评价指标**: 任务成功率（Success Rate），定义为500次rollout中完全完成任务的比例；报告峰值SR（peak success rate）  
+- **实验结果**:  
+　• 编码器升级（ResNet-18 → SigLIP）使DP提升+21.2%（M）/+26.0%（L），OAT仅+3.6%（M）/+10.4%（L）；  
+　• 四编码器梯度实验：DP成功率随编码器质量单调上升（36.4%→63.8%），OAT在51.0–57.4%窄带内随机震荡，无相关性；  
+　• 码本扩容实验（|𝒱|=1000→4375）：OAT对SigLIP的敏感度未线性提升，反而在|𝒱|=1920时出现ResNet性能崩塌（42.6%），暴露FSQ非线性失真——码本不是“带宽”，是“失真滤波器”；  
+　• 关键反转：ResNet-18下OAT领先DP达17.4个百分点；DINOv2下DP反超OAT 12.8个百分点——离散表征优势随上游质量升高而坍缩
+
+---
+
+
+### 2. 🔥 [Multi-View Video Diffusion Policy: A 3D Spatio-Temporal-Aware Video Action Model] (多视角视频扩散策略：一种3D时空感知的视频-动作联合模型)
+- **研究机构**: `NLPR & Institute of Automation, CAS；University of Chinese Academy of Sciences；Tsinghua University；Xi’an Jiaotong University；Wuhan University；FiveAges；Nanjing University`
+- **Arxiv ID**: `2604.03181` | [点击跳转](https://arxiv.org/abs/2604.03181)
+
+**0. 论文标题**  
+- **英文标题**: Multi-View Video Diffusion Policy: A 3D Spatio-Temporal-Aware Video Action Model  
+- **中文标题**: 多视角视频扩散策略：一种3D时空感知的视频-动作联合模型  
+- **研究机构**: NLPR & Institute of Automation, CAS；University of Chinese Academy of Sciences；Tsinghua University；Xi’an Jiaotong University；Wuhan University；FiveAges；Nanjing University  
+
+**1. 整体逻辑**  
+- **研究任务**: 从稀疏演示（≤10条）中学习具身操作策略，输出连续6DoF动作序列  
+- **研究动机**: 现有VLA/DP/3D策略三重失能——2D视觉与3D动作空间错配、静态图文预训练无法建模环境动力学、视频预测与动作解码割裂导致表征鸿沟  
+- **本质改动**: 将动作解码降维为**多视角热图视频生成任务**，使动作空间与视频基础模型（VFM）原生对齐  
+- **技术溯源**: Wan2.2（5B参数视频扩散基座）、CLIP/R3M未用；完全弃用VLM/VLA范式，纯视频foundation model驱动  
+
+**2. 技术拆解**  
+- **重点改进**: 用**3D-aware multi-view projection + heatmap-as-action**替代传统端到端动作回归；热图峰值经相机标定反投影即得3D位姿，消除几何先验手工设计  
+- **架构细节**: 输入=裁剪点云+当前末端位姿→正交投影为3视图RGB+3视图高斯热图；主干=Wan2.2 DiT（5B）+ view-attention模块（跨视图token交互）；动作解码=热图反投影（位置）+轻量4层Transformer（旋转/夹爪，170M）  
+- **核心 Loss**: 主损失=λ·L<sub>vid</sub> + (1−λ)·L<sub>heat</sub>（MSE噪声预测）；旋转/夹爪=四路交叉熵（roll/pitch/yaw各72分类+二值夹爪）；无语言模态、无强化学习、无轨迹监督  
+
+**3. 实验结果**  
+- **数据集和baseline**: Meta-World（7任务，5演示/任务）；真实世界Franka+ZED2i（3基础+4OOD任务，10演示/任务）；对比BC-R3M、Diffusion Policy、UniPi、AVDC、Track2Act、DreamZero、DP3、π₀.₅、UVA、BridgeVLA  
+- **评价指标**: 任务成功率（Meta-World：600步内达目标；真实世界：10次trial成功数）；鲁棒性=超参扰动下性能衰减率；可解释性=预测视频与真实执行结果的SSIM/PSNR  
+- **实验结果**: Meta-World平均成功率89.1%（SOTA，比最强baseline DreamZero高28.0 pts）；真实世界基础任务100%成功（DP3全0%），OOD泛化平均82.1%（π₀.₅仅31.4%）；1步扩散仍达76.3%成功率（传统视频策略需50+步）；预测视频SSIM=0.812，显著优于所有对比方法
+
+---
+
+
+### 3. 🔥 [Open-Loop Planning, Closed-Loop Verification: Speculative Verification for VLA] (开环规划、闭环验证：面向视觉-语言-动作模型的推测式验证框架)
+- **研究机构**: `Southeast University（主导），Nanyang Technological University`
+- **Arxiv ID**: `2604.02965` | [点击跳转](https://arxiv.org/abs/2604.02965)
+
+**0. 论文标题**  
+- **英文标题**: Open-Loop Planning, Closed-Loop Verification: Speculative Verification for VLA  
+- **中文标题**: 开环规划、闭环验证：面向视觉-语言-动作模型的推测式验证框架  
+- **研究机构**: Southeast University（主导），Nanyang Technological University  
+
+**1. 整体逻辑**  
+- **研究任务**: 在动态环境中实现高效且鲁棒的VLA控制，兼顾长时序规划能力与实时环境响应性。  
+- **研究动机**: 动作分块（action chunking）虽降推理开销，但纯开环执行导致误差累积；标准推测解码（speculative decoding）无法迁移到具身场景——未来观测不可预知，验证不能并行。  
+- **本质改动**: 将“重模型验证候选动作”彻底翻转为“重模型只做低频宏观规划 + 轻量 verifier 在线逐帧比对当前动作与闭环参考动作”。  
+- **技术溯源**: 基于 OpenVLA 架构（冻结主干），复用其 multimodal encoder 和 action head 输出；verifier 仅新增 ViT-Tiny + FC fusion head，无LLM/Transformer依赖。  
+
+**2. 技术拆解**  
+- **重点改进**: 提出 Deviation-based Replanning —— 不预测新动作，只判别原动作是否失效；阈值触发式 replan，非固定周期回滚。  
+- **架构细节**: 输入 = 当前帧图像（ViT-Tiny编码）+ 冻结的宏观规划特征 F₀（取自重VLA倒数第二层Transformer输出）；输出 = 单步参考动作 a′ₜ ∈ ℝᵈ；verifier 参数量 < 1.2M，延迟 ≈ 1.8ms（vs. VLA 320ms）。  
+- **核心 Loss**: L₁ regression loss ∥a′ₜ − a̅ₜ∥₁，监督 verifier 学习在最新观测下“若重规划应输出什么动作”，而非拟合原始 chunk 动作。  
+
+**3. 实验结果**  
+- **数据集和baseline**: LIBERO-10 / LIBERO-90 / LIBERO-Spatial；对比 baseline：OpenVLA-OFT（chunked）、SpecVLA（speculative decoding）、RT-2（step-wise closed-loop）。  
+- **评价指标**: Success Rate（task completion），Inference Overhead（VLA calls per control step），Drift Tolerance（最大连续有效 chunk steps）。  
+- **实验结果**: 在 LIBERO 三子集平均 success rate 提升 11.4%（79.5% → 90.9%），VLA 调用频次降至 0.17×（vs. chunked baseline），drift tolerance 达 42.3 步（chunk=64 时仍稳定执行 2/3）。
+
+---
+</script>
+            <script>
+                const rawMdElement = document.getElementById('raw-markdown');
+                if (rawMdElement) { document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent); }
+                function copySources() {
+                    const textArea = document.getElementById('sources-text');
+                    textArea.select();
+                    document.execCommand('copy');
+                    alert('已复制链接');
+                }
+            </script>
+        </body>
+        </html>
+        
