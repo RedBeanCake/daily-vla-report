@@ -1,0 +1,179 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+            <title>🤖 具身大模型简报 - Tue, 7 Apr 2026 (VLA: 4 of 63 entries)</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <style>
+                html, body { -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+                .sources-box { margin-top: 50px; padding: 20px; background: #f6f8fa; border: 1px dashed #d0d7de; border-radius: 10px; }
+                .sources-box textarea { width: 100%; height: 100px; margin: 10px 0; padding: 10px; font-family: monospace; font-size: 12px; border: 1px solid #d0d7de; border-radius: 6px; resize: none; }
+                .copy-btn { background-color: #2da44e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+            </style>
+        </head>
+        <body class="markdown-body">
+            <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
+            <h1>🤖 具身大模型简报 - Tue, 7 Apr 2026 (VLA: 4 of 63 entries)</h1>
+            <div id="content"></div>
+            
+        <div class="sources-box">
+            <h3>🔗 NotebookLM Sources 集合区 (共 4 篇)</h3>
+            <textarea id="sources-text" readonly>https://arxiv.org/html/2604.04502
+https://arxiv.org/html/2604.04161
+https://arxiv.org/html/2604.03552
+https://arxiv.org/html/2604.04834</textarea>
+            <button class="copy-btn" onclick="copySources()">📋 复制所有来源链接</button>
+        </div>
+        
+            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [Veo-Act: How Far Can Frontier Video Models Advance Generalizable Robot Manipulation?] (Veo-Act：前沿视频大模型究竟能将泛化性机器人操控推进多远？)
+- **研究机构**: `Tsinghua University`
+- **Arxiv ID**: `2604.04502` | [点击跳转](https://arxiv.org/abs/2604.04502)
+
+**0. 论文标题**  
+- **英文标题**: Veo-Act: How Far Can Frontier Video Models Advance Generalizable Robot Manipulation?  
+- **中文标题**: Veo-Act：前沿视频大模型究竟能将泛化性机器人操控推进多远？  
+- **研究机构**: Tsinghua University  
+
+**1. 整体逻辑**  
+- **研究任务**: 零样本指令驱动的灵巧手操作（抓取+放置），不依赖人类示范或任务微调。  
+- **研究动机**: VLA模型（如π₀.₅）因强行注入动作模态，严重损伤VLM预训练知识；而纯视频生成+IDM虽保全泛化性，但接触密集交互时低层控制失准——二者本质是“高语义保真 vs 高物理保真”的不可兼得。  
+- **本质改动**: 不再把视频模型当控制器，而是当**可信赖的高层运动先验生成器**；用IDM解码出带交互门控信号的动作块，再由VLA策略接管接触阶段——视频管“去哪”，VLA管“怎么碰”。  
+- **技术溯源**: Veo-3（闭源商用视频基座，未开源）、DINOv3（视觉编码器）、π₀.₅（OpenVLA系VLA基线）、STEM-OB（sim2real增强）。  
+
+**2. 技术拆解**  
+- **重点改进**: 多头IDM——单模型同时输出动作向量 + 标量交互门控值 $ G_t \in [0,1] $；门控值在线触发VLA接管，且支持回切（非单向切换）。  
+- **架构细节**: 输入为全局视角图像对 $ (I_{t-1}, I_t) $ + 机器人状态 $ s_t $；DINOv3编码后分叉：动作头（Huber回归，21维臂手联合动作）+ 门控头（BCE二分类，0=继续执行计划，1=立即切VLA）；动作块经滑动平均平滑后以滚动视界方式执行。  
+- **核心 Loss**: $ \mathcal{L} = \lambda_{\text{act}} \mathcal{L}_{\text{Huber}}(a_t, \hat{a}_t) + \lambda_{\text{gate}} \mathcal{L}_{\text{BCE}}(G_t, \hat{g}_t) $；无视频重建loss，不训练视频模型本身，仅用其推理输出。  
+
+**3. 实验结果**  
+- **数据集和baseline**: Sim（IsaacLab）+ Real（7-DoF臂+12-DoF灵巧手）；对比 π₀.₅（SOTA VLA）、VPP（纯Veo+IDM端到端执行）、Control/Experimental三类泛化压力测试（腕相机盲区、相似物干扰、路过干扰、富语义指令）。  
+- **评价指标**: 指令跟随成功（end-effector距目标物体表面≤5cm）、整体任务成功（完成抓放闭环）；均按成功次数/总次数报告。  
+- **实验结果**:  
+  - Sim中，π₀.₅在干扰场景下指令跟随率暴跌至3%~47%，Veo-Act稳在83%~93%；整体成功率从0%~40%提升至47%~93%；  
+  - Real中，π₀.₅在富语义指令下成功率仅11%，Veo-Act达79%；相似物干扰下从23%→92%；  
+  - 纯IDM（VPP）比Veo-Act低13~44个百分点——证明门控切换机制是关键增益，非单纯视频质量提升。
+
+---
+
+
+### 2. 🔥 [Adaptive Action Chunking at Inference-time for Vision-Language-Action Models] (面向视觉-语言-动作模型的推理时自适应动作分块)
+- **研究机构**: `National University of Singapore, Shenzhen University of Advanced Technology, City University of Hong Kong 等（多单位协作，NUS 为第一单位）`
+- **Arxiv ID**: `2604.04161` | [点击跳转](https://arxiv.org/abs/2604.04161)
+
+**0. 论文标题**  
+- **英文标题**: Adaptive Action Chunking at Inference-time for Vision-Language-Action Models  
+- **中文标题**: 面向视觉-语言-动作模型的推理时自适应动作分块  
+- **研究机构**: National University of Singapore, Shenzhen University of Advanced Technology, City University of Hong Kong 等（多单位协作，NUS 为第一单位）
+
+**1. 整体逻辑**  
+- **研究任务**: 推理时动态决定 VLA 模型的动作分块长度（chunk size）  
+- **研究动机**: 固定 chunk size 是暴力调参——RoboCasa 上不同任务最优 chunk 在 2–16 间跳变；小 chunk 导致抖动与低效，大 chunk 导致响应迟钝与误差累积  
+- **本质改动**: 用动作熵（action entropy）作实时置信度代理，以熵增拐点（max differential point of $\overline{E}_h$）驱动 chunk size 自适应缩放，不改训练、不增参数、不依赖 reward  
+- **技术溯源**: 基于 GR00T N1.5（Eagle-2 VLM + Flow-Matching DiT action head），兼容所有扩散/流匹配动作头；未修改 backbone、VLM 或训练目标
+
+**2. 技术拆解**  
+- **重点改进**: 推理时并行采样 $N=20$ 个动作 chunk → 分别计算连续平移/旋转（Gaussian differential entropy）与离散夹爪（categorical entropy）→ 聚合为平均 chunk 熵 $\overline{E}_h$ → 取 $\arg\max_h (\overline{E}_{h+1} - \overline{E}_h)$ 作为最优 chunk size $h^*$，下界截断 $\xi=2$  
+- **架构细节**: 输入：$N$ 个并行生成的 $H$-step action chunks（$H=16$）；输出：单个整数 $h^* \in [2, H]$；零训练开销；纯后处理；支持任意 DOF 混合动作空间（7-DOF 机械臂 + binary gripper 已验证）  
+- **核心 Loss**: 无新 loss；复用原 flow-matching loss $\mathcal{L}_{\rm fm} = \mathbb{E}_\tau[\| \mathbf{V}_\theta(\phi_t,\mathbf{A}_t^{(\tau)},\mathbf{q}_t) - (\epsilon - \mathbf{A}_t) \|^2]$；熵仅用于推理决策，不参与梯度回传  
+
+**3. 实验结果**  
+- **数据集和baseline**: RoboCasa（24 task，4 类：Relocation/Container/Rotation/Button）、LIBERO（4 suite：Spatial/Long/Object/Goal）；对比 baseline：GR00T N1.5（$h=16$ 默认）、$h=2/4/8/12$ 固定分块、π₀.₅；real-world 在 Franka Emika Panda 上验证  
+- **评价指标**: 任务成功率（%）；按语义子集分组报告；real-world 追加动作准确率与安全违规率（collision/drop）  
+- **实验结果**:  
+  - RoboCasa 平均成功率 +2.3%（59.7% → 62.0%），Rotation 子集跃升 +3.8%（57.6% → 61.4%）；  
+  - LIBERO 平均 +0.9%（94.1% → 95.0%），LIBERO-Long（长程多阶段任务）+4.0%（91.0% → 95.0%）；  
+  - real-world 任务成功率提升 7.2%，动作抖动下降 31%，安全违规率降低 44%；  
+  - OOD（LIBERO-Pro 位置扰动）下，GR00T+AAC 平均成功率仍比 baseline 高 2.4 个百分点（6.3% vs 3.9%）；  
+  - 消融显示：$N=20$ 样本即收敛，$N<5$ 时性能坍塌，证实熵估计需分布级采样而非单点预测
+
+---
+
+
+### 3. 🔥 [CRAFT: Video Diffusion for Bimanual Robot Data Generation] (CRAFT：基于视频扩散的双臂机器人演示数据生成框架)
+- **研究机构**: `University of Southern California`
+- **Arxiv ID**: `2604.03552` | [点击跳转](https://arxiv.org/abs/2604.03552)
+
+**0. 论文标题**  
+- **英文标题**: CRAFT: Video Diffusion for Bimanual Robot Data Generation  
+- **中文标题**: CRAFT：基于视频扩散的双臂机器人演示数据生成框架  
+- **研究机构**: University of Southern California  
+
+**1. 整体逻辑**  
+- **研究任务**: 从极少量真实双臂遥操作演示中，零样本生成大规模、多维视觉变异的、带动作标签的逼真训练视频。  
+- **研究动机**: 真实双臂演示成本高、视角/光照/物体/本体/相机配置单一，导致策略泛化崩溃；现有增强（如mask替换、单视图扰动、跨本体重绘）割裂、低保真、不产动作、无法建模接触动力学。  
+- **本质改动**: 用Canny边缘视频作为**结构锚点**，解耦运动拓扑（由仿真轨迹定义）与视觉表观（由扩散模型自由合成），实现“动作-外观”正交控制。  
+- **技术溯源**: Wan2.1-Fun-Control（1.3B参数视频扩散主干，支持Canny/depth/skeleton条件输入） + RoboTwin（仿真数字孪生） + Veo3（光照图像生成） + LLM（自动prompt工程）。
+
+**2. 技术拆解**  
+- **重点改进**: 彻底抛弃像素级重建或渲染管线；以Canny边缘为唯一结构约束，强制扩散模型只学习“哪里动、怎么动”，不限制“怎么看起来”。  
+- **架构细节**: 输入=（Canny边缘视频 𝐕ᶜ ∈ ℝ^(T×H×W×1) + 真实参考图 Iᶠ ∈ ℝ^(H×W×3) + 文本指令 ℓ）→ Wan2.1-Fun-Control → 输出= 𝐕ᵈ ∈ ℝ^(T×H×W×3)，同步导出原始仿真轨迹的动作标签 aₜ；支持四视图拼贴（腕左/腕右/第三人称/空位）、跨本体运动重定向（FK/IK链式映射）。  
+- **核心 Loss**: 隐式——Wan2.1预训练的视频扩散损失（L₂+感知损失+时序一致性正则），无额外设计loss；Canny边缘非监督提取（Hysteresis阈值+非极大值抑制），无训练开销。
+
+**3. 实验结果**  
+- **数据集和baseline**: RoboTwin基准（3个仿真双臂任务：Lift Pot/Place Cans/Stack Bowls） + 自建双臂xArm7→Franka真实平台（3个对应任务）；对比Shadow（mask覆盖）、CRAFT(Target)（仅跨本体迁移，无生成）、Collected Target（目标本体真机采集上界）。  
+- **评价指标**: 任务成功率（simulation：%；real-world：20次尝试成功数）；ACT策略作为统一下游评估器。  
+- **实验结果**:  
+  - 仿真：CRAFT(Ours)在Stack Bowls达86.0% → 超越Collected Target（59.0%）+27个百分点；  
+  - 真实世界：xArm7→Franka跨本体迁移，Stack Bowls达16/20 → 是Shadow（1/20）的16倍；  
+  - 消融：移除Canny边缘输入，Stack Bowls成功率从21.6%暴跌至10.3%，证明结构锚点不可替代。
+
+---
+
+
+### 4. 🔥 [E-VLA: Event-augmented Vision-Language-Action Model for Dark and Blurred Scenes] (E-VLA：面向暗光与运动模糊场景的事件增强型视觉-语言-动作模型)
+- **研究机构**: `Zhejiang University, Ant Group, Hunan University`
+- **Arxiv ID**: `2604.04834` | [点击跳转](https://arxiv.org/abs/2604.04834)
+
+**0. 论文标题**  
+- **英文标题**: E-VLA: Event-augmented Vision-Language-Action Model for Dark and Blurred Scenes  
+- **中文标题**: E-VLA：面向暗光与运动模糊场景的事件增强型视觉-语言-动作模型  
+- **研究机构**: Zhejiang University, Ant Group, Hunan University  
+
+**1. 整体逻辑**  
+- **研究任务**: 在低照度/运动模糊下维持VLA模型的动作成功率（非图像重建、非事件分类）  
+- **研究动机**: RGB帧式感知在传感端即崩溃——黑屏（black clipping）、信噪比归零、运动模糊不可逆；增强/超分只是修尸，不是续命  
+- **本质改动**: 放弃“用事件重建图像”，直接将事件流压缩为结构稳定、极轻量、分布对齐的伪RGB帧，注入预训练视觉编码器前端或中间层  
+- **技术溯源**: 基于 SmolVLA（SigLIP + LLM backbone + lightweight action expert），未动LLM、未重训ViT、未引入新模态token  
+
+**2. 技术拆解**  
+- **重点改进**:  
+  - 事件窗口化：弃用固定时长窗（易在慢速阶段欠采样、高速阶段过曝），改用**最近N事件滑动窗**（manipulation-aware event counting）  
+  - 事件表征：极简极鲁棒——**极性无关像素计数 → min-max归一化 → Bayer插值转三通道**（非E2VID式神经重建，无参数）  
+- **架构细节**:  
+  - 输入：30fps RGB + 同步DAVIS346事件流（346×260），单目腕部视角，宽视场（>100°）  
+  - Overlay方案：事件帧与RGB逐像素覆盖（最新事件覆盖旧像素），零参数，输入尺寸/分布完全匹配SigLIP  
+  - Adapter方案：轻量事件ViT（4层+共享patch embed），在SigLIP第3/6/9/12层注入，仅增13M参数（<3%总参）  
+  - 输出：保持原SmolVLA token序列长度，不增计算开销，不扰动LLM输入分布  
+- **核心 Loss**: 标准模仿学习动作回归Loss（L2 + BC loss），**无辅助重建loss、无对比loss、无事件监督信号**——事件价值纯靠下游动作成功率反向验证  
+
+**3. 实验结果**  
+- **数据集和baseline**:  
+  - 自建真实世界RGB-Event-Action数据集：724 episodes（305正常光 + 419多级弱光），含Pick-Place/Sorting/Stacking三任务  
+  - Baseline：SmolVLA（RGB-only）、RetinexNet/Retinexformer/EvLight（图像增强）、E2VID（事件→图像重建）  
+- **评价指标**: **真实机器人任务成功率**（Pick-Place/Sorting/Stacking在SO100机械臂上闭环执行），非仿真、非指标拟合  
+- **实验结果**:  
+  - 黑屏级弱光（20 lux）：Pick-Place从0% → Overlay 60% → Adapter 90%  
+  - 极端运动模糊（1000ms曝光）：Pick-Place 0% → 20–25%，Sorting 5% → 32.5%  
+  - 完全黑 clipped 场景：Adapter仍维持>80%成功率，RGB baseline彻底归零  
+  - 零弱光训练泛化：仅用正常光照数据训练，即可在未见弱光场景中显著优于所有baseline（证明事件是传感端鲁棒性本源，非数据拟合）
+
+---
+</script>
+            <script>
+                const rawMdElement = document.getElementById('raw-markdown');
+                if (rawMdElement) { document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent); }
+                function copySources() {
+                    const textArea = document.getElementById('sources-text');
+                    textArea.select();
+                    document.execCommand('copy');
+                    alert('已复制链接');
+                }
+            </script>
+        </body>
+        </html>
+        
