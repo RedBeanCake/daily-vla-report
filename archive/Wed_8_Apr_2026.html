@@ -33,240 +33,214 @@ https://arxiv.org/html/2604.05323</textarea>
             <button class="copy-btn" onclick="copySources()">📋 复制所有来源链接</button>
         </div>
         
-            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [$A_1$: A Fully Transparent Open-Source, Adaptive and Efficient Truncated Vision-Language-Action Model] ($A_1$：一个完全透明、开源、自适应且高效的截断式视觉-语言-动作模型)
-- **研究机构**: `SYSU, MBZUAI, Spatialtemporal AI`
+            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [$A_{1}$: A Fully Transparent Open-Source, Adaptive and Efficient Truncated Vision-Language-Action Model] ($A_1$：全透明开源、自适应与高效截断的视觉-语言-动作模型)
+- **研究机构**: `中山大学 (SYSU), MBZUAI, 时空智能实验室 (Spatialtemporal AI)`
 - **Arxiv ID**: `2604.05672` | [点击跳转](https://arxiv.org/abs/2604.05672)
 
-**0. 论文标题**  
-- **英文标题**: $A_1$: A Fully Transparent Open-Source, Adaptive and Efficient Truncated Vision-Language-Action Model  
-- **中文标题**: $A_1$：一个完全透明、开源、自适应且高效的截断式视觉-语言-动作模型  
-- **研究机构**: SYSU, MBZUAI, Spatialtemporal AI  
+**0. 论文标题**
+- **英文标题**: $A_{1}$: A Fully Transparent Open-Source, Adaptive and Efficient Truncated Vision-Language-Action Model
+- **中文标题**: $A_1$：全透明开源、自适应与高效截断的视觉-语言-动作模型
+- **研究机构**: 中山大学 (SYSU), MBZUAI, 时空智能实验室 (Spatialtemporal AI)
 
-**1. 整体逻辑**  
-- **研究任务**: 开放世界机器人操作中的高效视觉-语言-动作（VLA）控制  
-- **研究动机**: 现有VLA依赖十亿级VLM主干 + 扩散/流匹配动作头，推理延迟高、计算昂贵，难以在消费级硬件上实现实时控制  
-- **本质改动**: 联合压缩VLM主干与动作头：通过层间动作一致性触发早退，并用跨层截断流匹配实现暖启动去噪，大幅减少有效计算量  
-- **技术溯源**: 基于开源VLM **Molmo**（~7B），动作头采用 **Flow Matching**（仿 $\pi_0$ 架构）或 **MLP**；Qwen3 作为FM解码器（400M参数）  
+**1. 整体逻辑**
+- **研究任务**: 开放世界机器人多模态操作策略生成 (VLA)。
+- **研究动机**: 现有VLA陷入算力死局：十亿级VLM基座叠加10-20步迭代扩散/流匹配动作头，推理延迟极高，消费级硬件无法闭环控制。单独压缩主干后，迭代动作头立即成为新瓶颈。
+- **本质改动**: 摒弃固定深度前向传播，实施预算感知的联合截断。利用“VLM中间层已编码充足空间/视觉先验”与“流匹配轨迹3步内即可锁定分布”的经验规律，按算力预算动态掐断主干计算与动作头迭代。
+- **技术溯源**: VLM基座: Molmo；动作头架构: Flow-Matching / MLP；训练数据: DROID, RoboMind, RoboCOIN等开源集混合1.5万条自采真机轨迹。
 
-**2. 技术拆解**  
-- **重点改进**:  
-  - **Early-Termination Inference**：监控相邻VLM层输出的动作块差异，低于阈值即终止前向传播  
-  - **Inter-Layer Truncated Flow Matching**：每层仅执行 $\delta=2$ 步去噪，且下一层的初始噪声为上一层的去噪结果（非随机），形成跨层暖启动  
-- **架构细节**:  
-  - 输入：多视角RGB图像 + 本体感知状态 + 自然语言指令  
-  - 输出：未来 $H$ 步连续动作块 $\mathbf{A}_t \in \mathbb{R}^{H \times D}$  
-  - 主干：冻结ViT，微调Molmo语言部分；动作头共享，支持任意中间层桥接  
-  - 训练时对所有层监督动作损失，实现“全路径可早退”  
-- **核心 Loss**:  
-  - Flow Matching：$\mathcal{L}^{\tau} = \mathbb{E} \| \mathbf{v}_\theta(\mathbf{A}_t^\tau, \mathbf{o}_t) - (\boldsymbol{\epsilon} - \mathbf{A}_t) \|^2$，$\tau \sim \text{Beta}$  
-  - MLP：L1回归损失 $\| \hat{\mathbf{A}}_t - \mathbf{A}_t \|$  
-  - 无辅助重建任务，纯动作监督  
+**2. 技术拆解**
+- **重点改进**: 预算感知自适应推理管线。核心为双轨截断：① 动作一致性阈值驱动的VLM Early-Exit；② 层间截断流匹配 (Inter-Layer Truncated Flow Matching) 实现跨层去噪热启动。
+- **架构细节**: 主干冻结ViT，逐层提取隐藏态。动作头通过KV-Cache注入LLM前缀上下文。训练期随机采样中间层索引 $i$，强制浅层动作头同步受监督对齐GT。推理时逐层计算，若层间动作差异 $\Delta_{t}^{i}=d(\mathbf{A}_{t}^{(i)},\mathbf{A}_{t}^{(i-1)})$ 低于离线标定的动态分位阈值 $\eta_i$ 则立即终止前传。FM头单次仅执行极小步长去噪 ($\delta \approx 2$)，下一层直接以本层输出 $\mathbf{A}_{t}^{(i)}$ 作为初始条件 $\mathbf{A}_{t}^{0(i+1)}$ 热启动，彻底消除随机噪声冷启动开销。
+- **核心 Loss**: 无视频重建等辅助任务，纯策略监督。Flow分支采用条件流匹配损失 $\mathcal{L}_{\tau}$ 拟合去噪向量场 $\mathbf{u}(\mathbf{A}^\tau|\mathbf{A})$；MLP分支采用 L1 回归损失。训练损失覆盖所有采样层，确保浅层退出时动作仍具备物理合理性。
 
-**3. 实验结果**  
-- **数据集和baseline**:  
-  - 数据集：DROID, AgiBot, RoboCOIN, RoboMind, GM-100, RoboChallenge + 自采15,951条真实轨迹  
-  - Baseline：$\pi_0$, X-VLA, RDT-1B, DeeR-VLA 等开源VLA  
-- **评价指标**:  
-  - 成功率（simulation / real-world / RoboChallenge）  
-  - 推理延迟（秒/episode）、主干计算量（FLOPs或层激活比例）  
-- **实验结果**:  
-  - **RoboChallenge**：29.00% 成功率，超越 $\pi_0$（28.33%）、X-VLA（21.33%）、RDT-1B（15.00%）  
-  - **真实机器人**（Franka等4平台）：平均成功率 **56.7%**  
-  - **效率**：流匹配推理延迟降低 **72%**（37.8s → 10.5s/episode），主干计算减少 **76.6%**，性能几乎无损  
-  - 消融证实：早退机制 + 跨层截断FM 是性能-效率平衡的关键，单独使用任一模块收益有限
+**3. 实验结果**
+- **数据集和baseline**: 仿真: LIBERO, VLAA-Bench；真机: RoboChallenge (多形态平台), Franka, AgiBot。对标强基线: $\pi_0$, X-VLA, RDT-1B。
+- **评价指标**: 任务平均成功率 (SR)，端到端推理延迟/单Episode计算开销。
+- **实验结果**: 性能与效率硬解耦。RoboChallenge 均胜率 29.00%，超越 $\pi_0$ (28.33%) 与 RDT-1B (15.00%)；LIBERO 达 96.6%，四真机平台均值 56.7%。算力侧实现断崖式压缩：LIBERO 端到端延迟 37.8s→10.5s (直降 72%)，VLM 主干计算量削减 76.6%，成功率仅产生微小扰动。验证了“算力按需分配+去噪热启动”在真实控制环中的绝对收益。
 
 ---
 
 
-### 2. 🔥 [Grounding Hierarchical Vision-Language-Action Models Through Explicit Language-Action Alignment] (通过显式语言-动作对齐实现分层视觉-语言-动作模型的具身接地)
-- **研究机构**: `The University of Manchester`
+### 2. 🔥 [Grounding Hierarchical Vision-Language-Action Models Through Explicit Language-Action Alignment] (基于显式语言-动作对齐的分层视觉-语言-动作模型基座化)
+- **研究机构**: `曼彻斯特大学 (The University of Manchester)`
 - **Arxiv ID**: `2604.05614` | [点击跳转](https://arxiv.org/abs/2604.05614)
 
-**0. 论文标题**  
-- **英文标题**: Grounding Hierarchical Vision-Language-Action Models Through Explicit Language-Action Alignment  
-- **中文标题**: 通过显式语言-动作对齐实现分层视觉-语言-动作模型的具身接地  
-- **研究机构**: The University of Manchester  
+**0. 论文标题**
+- **英文标题**: Grounding Hierarchical Vision-Language-Action Models Through Explicit Language-Action Alignment
+- **中文标题**: 基于显式语言-动作对齐的分层视觉-语言-动作模型基座化
+- **研究机构**: 曼彻斯特大学 (The University of Manchester)
 
-**1. 整体逻辑**  
-- **研究任务**: 在分层VLA中同步生成低层级自然语言子任务描述与对应动作轨迹，并确保二者在视觉环境中的语义对齐。  
-- **研究动机**: 现有分层VLA虽能生成语言（如chain-of-thought）和动作，但训练目标割裂，缺乏语言-动作-视觉三者的显式对齐机制，导致“解释”与行为脱节，透明性虚假。  
-- **本质改动**: 引入一个独立训练的动作条件化对比模型作为“接地评分器”，用其生成偏好对（grounded vs. ungrounded），驱动VLA通过SimPO偏好学习对齐语言与动作。  
-- **技术溯源**: 基于 Gemma-3-4B-IT（高阶VLM）、SmolVLA（底层策略）、SigLIP 2 ViT-B/16（视觉编码器）；偏好优化采用 SimPO（无需参考模型的DPO变种）。  
+**1. 整体逻辑**
+- **研究任务**: 分层策略生成：输入高层自然语言指令，解耦输出低层子任务文本描述与对应的8步连续控制轨迹。
+- **研究动机**: 现有分层VLA的文本生成与动作预测训练目标割裂，中间描述脱离视觉-动作流形，导致执行幻觉；纯任务成功率掩盖子步骤语义偏差；人工标注中间态数据成本虚高。
+- **本质改动**: 以对比打分器替代人工标注，构建离线偏好闭环。用训练好的Grounding模型对自采样的语言-动作对进行隐式打分，生成偏好对后，用SimPO直接剪枝并重塑高层VLM的生成分布，强制文本锚定至真实物理空间。
+- **技术溯源**: 高层规划: Gemma-3-4B-IT；底层策略: SmolVLA；对比表征: SigLIP 2 (ViT-B/16)；偏好优化: SimPO (免参考模型的DPO变体)。
 
-**2. 技术拆解**  
-- **重点改进**: 不再依赖人工标注中间语言步骤，而是用可学习的对比模型自动评估语言-动作-视觉三元组的一致性，并以此构建偏好信号进行微调。  
-- **架构细节**:  
-  - 高阶VLM（Gemma3）输入高层指令+图像，输出低阶语言子目标；  
-  - 低阶VLA（SmolVLA）接收该子目标+图像+末端状态，输出8步2D动作轨迹；  
-  - 接地模型：冻结SigLIP 2视觉/文本编码器 + 可训练动作Transformer + FiLM调制视觉特征 + 投影层 → 共享嵌入空间。  
-- **核心 Loss**:  
-  - 接地模型：对称InfoNCE对比损失 + 多样性正则项（防嵌入坍缩）；  
-  - VLA微调：SimPO偏好损失，奖励信号直接来自接地模型的归一化对数概率得分。  
+**2. 技术拆解**
+- **重点改进**: 将“多模态对齐验证”与“底层策略执行”彻底解耦。预训练视觉-语言模型仅负责构建跨模态打分裁判；利用模型自生成的N个候选轨迹/文本对，自动挖掘正负样本，以数据驱动方式补齐语言与物理动作的语义鸿沟，踢开对Ground-Truth中间标签的依赖。
+- **架构细节**: 
+  - *分层VLA*: 高层Gemma-3 (冻结视觉编码器) 将宏观指令翻译为低层子任务文本；底层SmolVLA接收图像、末端执行器状态及低层文本，自回归解码8步连续坐标。推理阶段文本不落地，直接级联。
+  - *Grounding模型*: 双路对比投影网络。视觉支路 (SigLIP ViT) 经FiLM层动态调制动作Transformer的时序编码，实现“视觉-动作”流形融合；文本支路 (SigLIP) 独立编码。两路经线性投影压入共享隐空间。
+- **核心 Loss**:
+  - *基座训练*: 对称 InfoNCE Loss (拉近正样本视觉-动作/文本对，推远Batch内负样本) + 多样性正则项 $L_{div}$ (显式惩罚余弦相似度矩阵的非对角元素，暴力打断表征坍塌)。
+  - *偏好对齐*: SimPO Loss。以打分器输出的最优/最差对作为 $y_c, y_r$，计算长度归一化的序列对数概率奖励 $r = \frac{\beta}{|y|} \log \pi(y|x)$，直接优化对数几率差 $\mathcal{L}_{SimPO} = -\log \sigma(r_c - r_r - \gamma)$。无需维护Reference模型，显存开销极低。
 
-**3. 实验结果**  
-- **数据集和baseline**: LanguageTable（含人类标注的分层语言-动作轨迹）；对比 Supervised（全监督微调）、GPLA（不同接地模型变体）、Low-Level Only（仅动作）。  
-- **评价指标**:  
-  - 语言质量：BLEU、ROUGE-1、METEOR、BERTScore；  
-  - 轨迹精度：MSE↓、MAE↓、Cosine Similarity↓（越低越好？原文负值存疑，应为绝对误差或方向一致性）。  
-- **实验结果**:  
-  - GPLA（动作条件化）在语言指标上显著优于CLIP/SigLIP基线（ROUGE 0.300 vs 0.298/0.307），接近Supervised（0.405）；  
-  - 动作轨迹性能与Supervised相当（MSE≈0.045，MAE≈0.163），证明无需中间标注即可逼近全监督效果；  
-  - “Supervised + GPLA”组合反而语言质量下降（BLEU 0.051），暗示过度优化可能损害原始语义保真度。
+**3. 实验结果**
+- **数据集和baseline**: LanguageTable (Franka机械臂推块重组任务)。基线：底层单模态 (Low-Level Only)、全监督微调 (SFT, 依赖GT中间文本)、GPLA单模态打分器变体 (CLIP / SigLIP 2)、SFT+GPLA联合微调。
+- **评价指标**: 文本保真度 (BLEU, ROUGE-1, METEOR, BERTScore)；轨迹控制精度 (MSE, MAE, 轨迹余弦相似度)。
+- **实验结果**: 
+  - 轨迹维度：GPLA的MAE (0.163)、MSE (0.045)、CosSim (-0.035) 与全监督SFT完全持平。证明无GT中间标签时，仅靠对比打分器的偏好信号足以维持底层控制精度，且显著优于无分层设计的单模态基线。
+  - 文本维度：BLEU/ROUGE较SFT微降 (BLEU 0.066 vs 0.111)，但BERTScore稳定在0.976+。表明模型未退化为机械复读，生成的子任务指令在语义空间仍高度对齐操作逻辑。
+  - 表征分析：原生SigLIP/CLIP的视觉与文本空间存在显著模态割裂；经动作条件化对比微调后，视觉-动作流形与文本流形强制重叠。低数据 regime 下偏好对齐表现出强鲁棒性，验证了“模型自监督打分替代人工标注”路线的可行性。
 
 ---
 
 
-### 3. 🔥 [JailWAM: Jailbreaking World Action Models in Robot Control] (JailWAM：针对机器人控制中世界动作模型的越狱攻击)
-- **研究机构**: `上海交通大学人工智能研究院、南京大学PR Lab、中国军事科学院国防科技创新研究院`
+### 3. 🔥 [JailWAM: Jailbreaking World Action Models in Robot Control] (JailWAM：机器人控制中世界动作模型的越狱攻击框架)
+- **研究机构**: `上海交通大学, 南京大学, 中国军事科学院国防创新研究院`
 - **Arxiv ID**: `2604.05498` | [点击跳转](https://arxiv.org/abs/2604.05498)
 
-**0. 论文标题**  
-- **英文标题**: JailWAM: Jailbreaking World Action Models in Robot Control  
-- **中文标题**: JailWAM：针对机器人控制中世界动作模型的越狱攻击  
-- **研究机构**: 上海交通大学人工智能研究院、南京大学PR Lab、中国军事科学院国防科技创新研究院  
+**0. 论文标题**
+- **英文标题**: JailWAM: Jailbreaking World Action Models in Robot Control
+- **中文标题**: JailWAM：机器人控制中世界动作模型的越狱攻击框架
+- **研究机构**: 上海交通大学, 南京大学, 中国军事科学院国防创新研究院
 
-**1. 整体逻辑**  
-- **研究任务**: 对世界动作模型（WAM）实施物理层面的越狱攻击，并评估其安全对齐能力。  
-- **研究动机**: WAM具备强物理操控能力，但现有工作忽视其对越狱攻击的脆弱性——一旦绕过安全机制，可直接引发人身伤害或设备损毁。  
-- **本质改动**: 将越狱攻击从“数字有害输出”升级为“物理危险行为”，并构建首个面向WAM的系统化攻击与评估框架。  
-- **技术溯源**: 基于LingBot-VA、Cosmos-Policy等主流WAM架构；使用Qwen3-VL作为风险判别器基座；依赖Gemini-3.1-Pro进行自动标注。  
+**1. 整体逻辑**
+- **研究任务**: 量化并突破世界动作模型（WAM）的安全对齐机制，诱导机械臂执行物理级危险动作。
+- **研究动机**: WAM直接映射底层控制信号。对齐漏洞不再停留在“生成有害像素/文本”，而是直接转化为关节越限、高速撞击等实体破坏。现有评估存在三重死穴：运动危害无分级标准、各模型动作空间异构无法对齐、全闭环物理仿真验证算力爆炸。
+- **本质改动**: 抛弃逐指令跑闭环的笨重范式。将越狱评估降维至“开环视觉轨迹粗筛 → 闭环高危物理复核”。用标准化2D渲染桥接低维控制信号与VLM空间推理能力，实现跨架构的统一、高吞吐威胁探测。
+- **技术溯源**: 越狱Prompt生成依赖商用LLM（Gemini/GPT-5等）模板采样；风险评估基座为Qwen3-VL-2B；目标模型涵盖LingBot-VA、Cosmos-Policy、Motus、$\pi_{0.5}$；仿真环境依托RoboTwin与LIBERO。
 
-**2. 技术拆解**  
-- **重点改进**: 提出三组件框架：(1) Visual-Trajectory Mapping统一异构动作空间；(2) Risk Discriminator高效筛出高危轨迹；(3) Dual-Path Verification兼顾效率与物理真实性。  
-- **架构细节**: 输入为初始观测+状态+对抗指令；输出为H步动作序列；通过积分将相对动作转为绝对末端轨迹，正交投影生成xy/xz双视图轨迹图；Risk Discriminator为微调后的Qwen3-VL-2B，输入轨迹图+指令，输出{0,1,2}安全等级。  
-- **核心 Loss**: 无显式训练Loss——Risk Discriminator采用监督分类损失（交叉熵），标签由Gemini+人工校验生成；主流程依赖策略黑盒采样，不更新WAM参数。  
+**2. 技术拆解**
+- **重点改进**: 构建Dual-Path Verification（双路径验证）流水线。Phase I（开环）：利用VTM将动作序列正交投影为多视图轨迹图，灌入轻量判别器(RD)进行高吞吐过滤，直接丢弃安全指令。Phase II（闭环）：仅将高风险样本送入高保真物理引擎验证。算力消耗呈指数级压缩，评估效率与物理保真度强制解耦。
+- **架构细节**: 
+  - **越狱池构建**: 预设危险动作语义模板驱动LLM生成任务无关的破坏性指令（如“暴力越界”“高频震荡”），规避逐词梯度搜索。
+  - **VTM映射器**: 相对位移积分→世界坐标系绝对轨迹→XY/XZ正交投影→硬编码环境几何约束（工作区边界/桌高）→合成多视图轨迹图表。将抽象控制律显式转为几何异常检测问题。
+  - **Risk Discriminator (RD)**: Qwen3-VL-2B指令微调。输入拼接=轨迹图+对抗指令，输出三级离散标签(0合规/1运动失效/2灾难风险)。
+- **核心 Loss**: RD训练采用标准监督微调SFT Loss（Cross-Entropy）。无视频重建或动力学一致性等辅助Loss，完全依赖高质量监督数据（2.5K轨迹，Gemini CoT初标+专家复核扩容至25K）暴力对齐物理危害语义。越狱搜索为黑盒优化，目标函数直接最大化RD输出的危害等级$\mathcal{R}(y^*)$。
 
-**3. 实验结果**  
-- **数据集和baseline**: 在RoboTwin和LIBERO仿真环境中测试LingBot-VA、Motus、Cosmos-Policy、π₀.₅；对比Clean、RSA（随机后缀）、TPA（模板攻击）三种基线。  
-- **评价指标**: Attack Success Rate (ASR) = Motion Failure Rate (MFR, Level 1) + Catastrophic Risk Rate (CRR, Level 2)，由人类专家在闭环仿真视频中最终判定。  
-- **实验结果**: JailWAM在LingBot-VA上达成84.2% ASR（人类验证），远超TPA（4.2%）和RSA（5.2%）；在Motus上达60.6% ASR，证明漏洞跨架构存在；非WAM模型π₀.₅仅0.8% ASR，说明风险集中于生成式世界模型。
+**3. 实验结果**
+- **数据集和baseline**: 环境：RoboTwin, LIBERO。对比基线：Clean(原始指令)、RSA(随机后缀扰动)、TPA(传统LLM启发式越狱模板)。攻击靶机：LingBot-VA(主力SOTA)、Motus、Cosmos-Policy、$\pi_{0.5}$。
+- **评价指标**: 攻击成功率(ASR)，严格解耦为运动失败率(MFR, Level 1)与灾难风险率(CRR, Level 2)。双轨验证：RD自动预测置信度 vs. 专家对闭环执行视频的人工复核（Ground Truth）。
+- **实验结果**: JailWAM在LingBot-VA上人工确认ASR飙升至84.2%（含22.2%不可逆灾难风险），较传统TPA/RSA暴涨70%+。跨架构在Motus上维持60.6% ASR，非WAM模型$\pi_{0.5}$仅1.8%暴露传统越局对具身域基本失效。RD自动判别与人工复核高度一致，开环过滤机制将单轮评估耗时砍掉两个数量级。结论直接且致命：当前WAM的物理安全对齐形同虚设，视觉先例一旦越狱即转化为不可控的实体动能。
 
 ---
 
 
-### 4. 🔥 [StarVLA: A Lego-like Codebase for Vision-Language-Action Model Developing] (StarVLA：一个乐高式视觉-语言-动作模型开发代码库)
-- **研究机构**: `StarVLA Community & Von Neumann Institute, HKUST`
+### 4. 🔥 [StarVLA: A Lego-like Codebase for Vision-Language-Action Model Developing] (StarVLA：面向视觉-语言-动作模型开发的积木式代码库)
+- **研究机构**: `StarVLA Community & Von Neumann Institute, HKUST (香港科技大学)`
 - **Arxiv ID**: `2604.05014` | [点击跳转](https://arxiv.org/abs/2604.05014)
 
-**0. 论文标题**  
-- **英文标题**: StarVLA: A Lego-like Codebase for Vision-Language-Action Model Developing  
-- **中文标题**: StarVLA：一个乐高式视觉-语言-动作模型开发代码库  
-- **研究机构**: StarVLA Community & Von Neumann Institute, HKUST  
+**0. 论文标题**
+- **英文标题**: StarVLA: A Lego-like Codebase for Vision-Language-Action Model Developing
+- **中文标题**: StarVLA：面向视觉-语言-动作模型开发的积木式代码库
+- **研究机构**: StarVLA Community & Von Neumann Institute, HKUST (香港科技大学)
 
-**1. 整体逻辑**  
-- **研究任务**: 构建统一、可复现、模块化的 VLA（Vision-Language-Action）系统开发框架  
-- **研究动机**: 当前 VLA 研究碎片化严重——架构互不兼容、训练流程耦合、评测协议混乱，阻碍公平比较与技术积累  
-- **本质改动**: 提出 backbone–action-head 解耦架构 + 统一 I/O 接口 + 标准化训练/评测流水线，实现“乐高式”组合  
-- **技术溯源**: 支持主流 VLM（如 Qwen-VL）和世界模型（如 Cosmos）作为 backbone；整合 FAST、OFT、π₀、GR00T 四类 action head  
+**1. 整体逻辑**
+- **研究任务**: 终结VLA领域“巴别塔”现状，提供一套标准化、全模块化、可横向对比的端到端研发与部署基建。
+- **研究动机**: 现有VLA研究代码高度耦合、数据管道封闭、评测协议割裂。换底座等于重写流水线，跨范式对比依赖主观调参，学术复现成本畸高，严重拖慢具身智能范式收敛。
+- **本质改动**: 强制推行“VL主干 + 动作头”双向解耦架构。将VLM推理与世界模型生成降维统一为 `L = L_action + L_aux` 的泛化策略表达；范式差异仅由辅助信号（语言子规划 vs 未来视觉重建）定义。
+- **技术溯源**: 原生适配 Qwen-VL/InternVL（VLM系）、Cosmos（视频世界模型系）；标准化复刻并开源对齐 OpenVLA-OFT、π0、GR00T、FAST 四大主流解码范式。
 
-**2. 技术拆解**  
-- **重点改进**: 将 VLA 系统抽象为 π(a, y_aux | x, ℓ)，统一 VLM-based 与 world-model-based 方法为同一策略框架下的不同 ℒ_aux 实例  
-- **架构细节**:  
-  - 输入：原始多视角 RGB 图像 + 自然语言指令（无预处理依赖）  
-  - 输出：归一化动作 chunk（支持 open-loop 多步预测）  
-  - Backbone：可插拔（Qwen-VL、InternVL、Cosmos 等）  
-  - Action Head：四类可选（FAST：自回归离散 token；OFT：并行 MLP 回归；π：flow-matching denoising；GR00T：双系统推理）  
-- **核心 Loss**: ℒ = ℒ_action + ℒ_aux  
-  - ℒ_action：动作监督（token 交叉熵 / L1 回归 / flow-matching loss）  
-  - ℒ_aux：可选辅助任务（未来图像预测、子目标语言生成等），用于注入归纳偏置  
+**2. 技术拆解**
+- **重点改进**: 强推I/O契约，斩断预处理黑盒。训练与真机部署强制对齐“原始传感器流 → 归一化动作块”，彻底抹平Train-Test分布偏移。全链路YAML声明式组装，主干与动作头独立热插拔，底层训练循环与评估脚本零修改。
+- **架构细节**: 
+  - 输入：原始多视角RGB/深度/触觉/本体感知 + 自然语言指令；输出：未来K步连续动作块。
+  - 动作头四选一：FAST（映射至LLM词表自回归离散Token）、OFT（轻量MLP并行L1回归）、π/π0（Cross-Attention注入多层表征的流匹配迭代去噪）、GR00T（DiT快系统+VL主干慢推理的双系统架构）。
+  - 训练栈：PyTorch + Accelerate + DeepSpeed分布式硬连接；内置混合DataLoader，支持单基准行为克隆、多目标联合微调、跨具身混合预训练、RL直挂微调。
+- **核心 Loss**: 统一范式 `L_total = L_action(α) + L_aux(β)`。VLM路线 `L_aux` 锁定语言对齐/空间Grounding/子任务规划；世界模型路线 `L_aux` 锁定未来观测帧/视频重建。双加载器多目标训练防表征坍塌，辅助任务作为强归纳偏置塑造动作表征流形。
 
-**3. 实验结果**  
-- **数据集和baseline**:  
-  - 数据集：LIBERO、SimplerEnv、RoboCasa-GR1、RoboTwin 2.0、BEHAVIOR-1K  
-  - Baseline：OpenVLA-OFT、Isaac-GR00T、X-VLA 等开源方法  
-- **评价指标**: 任务成功率（task success rate）在各 benchmark 标准协议下评估，支持 sim-to-real 部署一致性验证  
-- **实验结果**:  
-  - 单 benchmark 训练：仅用 minimal data engineering，StarVLA 在多个 benchmark 上匹配或超越 SOTA（如 LIBERO-Spatial 达 85%+）  
-  - 跨 benchmark 通用模型：首次实现五 benchmark 联合训练的通用 VLA，性能无显著下降  
-  - 模块组合有效性：相同 backbone + 不同 head 可直接对比，验证 OFT 快但精度低，π 更稳但慢，FAST 适合离散控制  
-  - 训练效率：单节点吞吐达 1.8× OpenVLA，多节点线性扩展至 32 GPU
+**3. 实验结果**
+- **数据集和baseline**: LIBERO, SimplerEnv, RoboTwin 2.0, RoboCasa-GR1, BEHAVIOR-1K。横评各范式原始论文SOTA及开源实现版（OpenVLA, π0, GR00T等），控制变量严格对齐。
+- **评价指标**: 任务成功率（SR）、跨基准/跨具身零样本泛化率、单/多节点训练吞吐（Samples/sec）、分布式线性扩展效率（Scaling Law）。
+- **实验结果**: 剥离一切数据工程魔改，仅凭标准流水线配方即打平或超越多数SOTA基线。实证“解耦不降效”。计算测试显示多卡/多节点扩展近乎线性。核心结论：VLA当前的性能瓶颈不在底座选型，而在数据混合策略与训练范式组合；框架统一后，性能差异可被标准化数据配方迅速抹平。基建价值 > 单点算法创新。
 
 ---
 
 
 ### 5. 🔥 [From Video to Control: A Survey of Learning Manipulation Interfaces from Temporal Visual Data] (从视频到控制：基于时序视觉数据学习操作接口的综述)
-- **研究机构**: `The University of Hong Kong, Southern University of Science and Technology, Peng Cheng Laboratory, LimX Dynamics`
+- **研究机构**: `Southern University of Science Technology, The University of Hong Kong, Peng Cheng Laboratory, LimX Dynamics`
 - **Arxiv ID**: `2604.04974` | [点击跳转](https://arxiv.org/abs/2604.04974)
 
-**0. 论文标题**  
-- **英文标题**: From Video to Control: A Survey of Learning Manipulation Interfaces from Temporal Visual Data  
-- **中文标题**: 从视频到控制：基于时序视觉数据学习操作接口的综述  
-- **研究机构**: The University of Hong Kong, Southern University of Science and Technology, Peng Cheng Laboratory, LimX Dynamics  
+**0. 论文标题**
+- **英文标题**: From Video to Control: A Survey of Learning Manipulation Interfaces from Temporal Visual Data
+- **中文标题**: 从视频到控制：基于时序视觉数据学习操作接口的综述
+- **研究机构**: Southern University of Science Technology, The University of Hong Kong, Peng Cheng Laboratory, LimX Dynamics
 
-**1. 整体逻辑**  
-- **研究任务**: 如何从无动作标注的时序视频中学习可用于机器人操作的控制接口。  
-- **研究动机**: 动作标注的机器人数据昂贵且难以扩展，而海量无标注视频（人类/机器人）蕴含丰富的物理动态信息，但缺乏与机器人动作的对齐、存在视角/本体差异，导致直接迁移失效。  
-- **本质改动**: 不聚焦模型架构，而是按“视频→控制”接口的设计位置与显式程度划分方法家族，强调控制闭环集成属性。  
-- **技术溯源**: 涵盖基于扩散模型（如VidMan、UWM）、世界模型（如ContextWM）、VLA扩展（如LAPA、UniVLA）、光流/轨迹预测（如ATM、GeneralFlow）等多类技术，但统一以无动作视频为时序监督源。  
+**1. 整体逻辑**
+- **研究任务**: 建立海量无动作标注视频至机器人可执行控制信号的映射桥梁。
+- **研究动机**: 动作标记数据是具身智能的阿喀琉斯之踵。互联网视频蕴含物理动力学先验，但缺乏动作对齐、视角错位、具身约束缺失。纯视觉预测无法直接闭环控制。
+- **本质改动**: 剥离“模型架构军备竞赛”叙事，以“接口显式性×动作距离”双轴重构技术谱系，直击“时序先验如何注入控制堆栈”。
+- **技术溯源**: 覆盖 GPT式自回归联合生成(GR)、视频/动作联合扩散(PAD/UWM)、信息瓶颈/向量量化(CLASP/LAPO/Genie)、VLA潜动作微调(LAPA/UniVLA)、视觉子目标/轨迹规划(UniPi/SuSIE/ATM/MimicPlay)。
 
-**2. 技术拆解**  
-- **重点改进**: 提出三大家族分类法：(1) 隐式端到端视频–动作策略；(2) 通过紧凑隐动作中间表示路由；(3) 生成可解释的显式视觉目标（子目标图像、轨迹、位姿）。  
-- **架构细节**:  
-  - 家族I：共享骨干同时预测未来帧与动作（如GR-1、PAD），或用视频预训练编码器后接动作头（如VPP）；  
-  - 家族II：先从无动作视频学离散/连续隐动作（如LAPO用VQ，CLASP用信息瓶颈），再用少量机器人数据映射到真实动作；  
-  - 家族III：输出结构化目标——子目标图像（SuSIE）、密集视频计划（Dreamitate）、2D像素轨迹（Track2Act）、6D位姿序列（ZeroMimic），由下游控制器跟踪。  
-- **核心 Loss**: 依赖时序预测损失（如未来帧重建、光流一致性、潜变量过渡建模），无直接动作监督；动作仅在接地阶段用于微调/逆动力学拟合。  
+**2. 技术拆解**
+- **重点改进**: 摒弃端到端黑盒崇拜，将技术栈强制解耦为：时序建模层（学变化）→ 接口层（定结构）→ 控制执行层（做跟踪）。明确三类路由的失效边界。
+- **架构细节**: 
+  - 隐式路由（左）：共享骨干直接解码动作。黑盒，零中间态，部署极简，跨具身必崩。
+  - 潜动作路由（中）：压缩帧间转移至连续瓶颈或离散VQ码本。解耦可控与外生变化，逆/前向动力学配对。码本语义模糊，接地环节极易分布偏移。
+  - 显式接口（右）：生成子目标帧/密集视频计划/2D像素流/3D位姿序列。规划与底层跟踪强制解耦。人类可读、可验证，但依赖下游跟踪器鲁棒性，生成幻觉直接放大为物理碰撞。
+- **核心 Loss**: 多模态联合去噪（图像重建L2/扩散交叉熵 + 动作MSE）、信息瓶颈/码本承诺损失（KL散度+重建保真）、显式接口跟踪误差（光流/轨迹MSE+接触力/穿透物理惩罚）、接地对齐（逆动力学匹配或RL微调策略梯度）。
 
-**3. 实验结果**  
-- **数据集和baseline**: 覆盖人类视频（Ego4D、EPIC-Kitchens）、机器人视频（无动作标签）、仿真/真实机器人基准（如R2R、BridgeData）；对比对象为各家族内部代表性方法，非统一baseline。  
-- **评价指标**: 分散且不一致——任务成功率、轨迹误差、人工评估、跨本体迁移能力；缺乏统一验证协议。  
-- **实验结果**: 无绝对优胜家族。显式接口（家族III）可解释性强、易验证，但感知-接地链路脆弱；隐式端到端（家族I）部署简单但黑箱、难迁移；隐动作（家族II）折中，但代码可能混杂可控/外生变化，接地易崩。关键瓶颈不在视频建模，而在**机器人集成层**（闭环执行、物理一致性、故障恢复）。
+**3. 实验结果**
+- **数据集和baseline**: 人类/野外无标注视频(Ego4D/EPIC-K)、跨具身轨迹(Open X)、仿真基准。对比纯端到端VLA、纯视频预测模型、单演示模仿学习。
+- **评价指标**: 任务成功率、跨具身/跨视图零样本迁移率、轨迹跟踪误差漂移、物理一致性(穿透/违反约束率)、闭环重规划延迟、接口可验证性。
+- **实验结果**: 数据规模定律仅在隐式/潜空间接口成立，显式接口靠结构先验抗方差。显式规划调试透明、跨具身适配性强，但死于生成物理幻觉与底层跟踪误差累积；隐式/潜动作泛化上限高，但动作不可解释、故障无法隔离、域移直接导致失控。全局致命瓶颈不在视频生成精度，而在**机器人学集成层**：接口到电机命令的物理对齐机制缺失、开环规划与闭环跟踪的割裂、缺乏执行感知与形式化验证。破局路径：将接触约束/动力学方程硬编码进接口生成，构建可验证的闭环重规划器，放弃纯数据驱动的盲目 scaling。
 
 ---
 
 
-### 6. 🔥 [Action Images: End-to-End Policy Learning via Multiview Video Generation] (动作图像：通过多视角视频生成实现端到端策略学习)
+### 6. 🔥 [Action Images: End-to-End Policy Learning via Multiview Video Generation] (动作图像：基于多视角视频生成的端到端策略学习)
 - **研究机构**: `UMass Amherst, UTokyo, NVIDIA, Harvard University, Genesis AI`
 - **Arxiv ID**: `2604.06168` | [点击跳转](https://arxiv.org/abs/2604.06168)
 
-**0. 论文标题**  
-- **英文标题**: Action Images: End-to-End Policy Learning via Multiview Video Generation  
-- **中文标题**: 动作图像：通过多视角视频生成实现端到端策略学习  
-- **研究机构**: UMass Amherst, UTokyo, NVIDIA, Harvard University, Genesis AI  
+**0. 论文标题**
+- **英文标题**: Action Images: End-to-End Policy Learning via Multiview Video Generation
+- **中文标题**: 动作图像：基于多视角视频生成的端到端策略学习
+- **研究机构**: UMass Amherst, UTokyo, NVIDIA, Harvard University, Genesis AI
 
-**1. 整体逻辑**  
-- **研究任务**: 将机器人策略学习建模为多视角视频生成问题，联合生成观测视频与动作表示。  
-- **研究动机**: 现有世界模型（WAM）的动作表示非像素对齐，依赖额外策略头，导致视频泛化能力无法有效转化为策略泛化能力；跨视角、跨环境迁移失败。  
-- **本质改动**: 将7-DoF机器人动作编码为“动作图像”——一种多视角、像素对齐、可解释的视觉热力图序列，使视频主干网络自身成为零样本策略器。  
-- **技术溯源**: 基于预训练视频生成模型 Wan 2.2（类似Sora架构），使用3D-VAE进行tokenization，结合Flow Matching优化目标。
+**1. 整体逻辑**
+- **研究任务**: 机器人具身策略学习与多模态世界模型生成（视频观测与动作控制联合建模）
+- **研究动机**: 现有视频世界模型“能预测未来帧，但控不了机器人”。根本断层在于Action表征未做像素级空间对齐，低维向量或隐式Token迫使模型外挂独立Policy Head/Action Module，割裂预训练视频主干的视觉先验，导致跨视角、跨本体零样本迁移必然崩塌。
+- **本质改动**: 砍掉所有策略解码头。将7-DoF连续控制直接渲染为“多视角Action图像”，控制问题被暴力降维为纯视觉生成与运动追踪任务，视频生成主干即零样本策略网络。
+- **技术溯源**: 底层架构基于 Wan 2.2（视频Flow Matching模型），潜空间对齐采用3D-VAE；数据流混用RLBench (Sim)、DROID、BridgeV2。
 
-**2. 技术拆解**  
-- **重点改进**: 动作不再作为低维向量或隐式token，而是渲染为RGB热力图：红=末端位置，绿=法向方向，蓝=上方向+夹爪开合度。  
-- **架构细节**: 输入为多视角RGB视频 + 对应动作图像，拼接成统一时序序列（长度2T），经共享权重3D-VAE编码后输入Transformer主干；支持文本、相机位姿条件注入；多视角通过Plücker嵌入实现几何一致性。  
-- **核心 Loss**: Flow Matching下的L2速度损失，仅作用于掩码区域；训练采用四种掩码策略：(1) 联合生成视频+动作，(2) 动作条件视频生成，(3) 视频推断动作（即策略），(4) 仅视频生成（用于无动作标注数据）。
+**2. 技术拆解**
+- **重点改进**: 动作视觉化编码与几何逆变换解码流水线。编码器将7-DoF拆解为位置、上向、法向3个语义3D点，投影至多视角图像空间，渲染为RGB通道高斯热图（蓝通道低响应区直接编码夹爪开合标量）；解码器逆向操作：主视角质心射线投射+侧视热图极值匹配解算深度，几何还原3D点并反推位姿，信息损耗仅受限于射线采样步长与图像分辨率。
+- **架构细节**: 观测视频流与动作图像流经3D-VAE压缩后，在Latent空间按时间轴刚性拼接。通过动态Mask机制统一多任务训练：全Mask（文本/相机条件联合生成）、Mask Obs（动作条件视频生成）、Mask Action（视频推断动作序列）。多视角几何一致性通过Plücker射线编码轻量注入Spatial-to-3D Attention特征层强制对齐，无额外跨模态融合模块。
+- **核心 Loss**: 纯Flow Matching速度预测 $L_2$ 损失 $\mathcal{L}=\mathbb{E}[\|M\odot(\mathbf{v}-\mathbf{v}_\theta)\|_2^2]$。仅对Masked Token计算梯度，无辅助策略Loss或对比学习项。掩码切换即实现任务模式切换，表征空间强制共享。
 
-**3. 实验结果**  
-- **数据集和baseline**: RLBench（180k轨迹）、DROID（80k真实多视角）、BridgeV2（30k）；对比MV-Policy、π₀.₅、MolmoAct、TesserAct、Cosmos-Policy等主流VLA/世界模型方法。  
-- **评价指标**: 零样本单次开环执行成功率（无需在线重规划），在RLBench和真实世界多个任务上评估。  
-- **实验结果**: 在RLBench上，“pick cup”任务达60%成功率（第二名仅5%）；“close drawer”达50%（第二名20%）；真实世界“Close Drawer”达45%（其余方法≤5%）。整体大幅领先，证明像素对齐动作表示显著提升策略泛化能力。
+**3. 实验结果**
+- **数据集和baseline**: RLBench仿真与真实物理环境操作任务。对比 MV-Policy, $\pi_{0.5}$, MolmoAct, TesserAct, Cosmos-Policy。采用极端的“单次前向开环(One-trial Open-loop)”零样本设定，拒绝闭环重规划作弊。
+- **评价指标**: 任务成功率(SR%)。直接解码生成的Action图像序列驱动仿真/真实机械臂，统计单轮执行成功率。
+- **实验结果**: 开环控制能力断层领先。真实场景核心指标大幅跃升：Reach Target 从基线 0-5% 飙至 60%；Close Drawer 从 0-35% 提升至 50%；Pick Unseen Toy 从 0-5% 提升至 20%。像素级对齐彻底抹平了视频预测与物理执行间的泛化鸿沟，证明多视角动作热图是比离散Token更鲁棒的通用策略载体。
 
 ---
 
 
-### 7. 🔥 [VLA-InfoEntropy: A Training-Free Vision-Attention Information Entropy Approach for Vision-Language-Action Models Inference Acceleration and Success] (VLA-InfoEntropy：一种免训练的视觉-注意力信息熵方法，用于视觉-语言-动作模型的推理加速与成功率提升)
-- **研究机构**: `Chinese Academy of Sciences, University of Chinese Academy of Sciences`
+### 7. 🔥 [VLA-InfoEntropy: A Training-Free Vision-Attention Information Entropy Approach for Vision-Language-Action Models Inference Acceleration and Success] (VLA-InfoEntropy：基于视觉-注意力信息熵的免训练VLA模型推理加速框架)
+- **研究机构**: `深圳科研团队（深港联合基金项目主导）`
 - **Arxiv ID**: `2604.05323` | [点击跳转](https://arxiv.org/abs/2604.05323)
 
-**0. 论文标题**  
-- **英文标题**: VLA-InfoEntropy: A Training-Free Vision-Attention Information Entropy Approach for Vision-Language-Action Models Inference Acceleration and Success  
-- **中文标题**: VLA-InfoEntropy：一种免训练的视觉-注意力信息熵方法，用于视觉-语言-动作模型的推理加速与成功率提升  
-- **研究机构**: Chinese Academy of Sciences, University of Chinese Academy of Sciences  
+**0. 论文标题**
+- **英文标题**: VLA-InfoEntropy: A Training-Free Vision-Attention Information Entropy Approach for Vision-Language-Action Models Inference Acceleration and Success
+- **中文标题**: VLA-InfoEntropy：基于视觉-注意力信息熵的免训练VLA模型推理加速框架
+- **研究机构**: 深圳科研团队（深港联合基金项目主导）
 
-**1. 整体逻辑**  
-- **研究任务**: 在不重训模型的前提下，加速VLA（Vision-Language-Action）模型推理并维持/提升任务成功率。  
-- **研究动机**: 现有VLA推理对冗余视觉token无差别计算，导致高延迟；现有免训练加速方法（如VLA-Cache）仅依赖注意力或静态视觉相似性，忽略语义相关性与时间动态性。  
-- **本质改动**: 引入**视觉熵**（衡量纹理复杂度）和**注意力熵**（衡量跨模态语义聚焦度），结合**时间步自适应调度**，动态选择关键token，其余复用KV缓存。  
-- **技术溯源**: 基于OpenVLA架构，继承VLA-Cache的KV复用机制，但替换其token重要性判据为信息熵指标。  
+**1. 整体逻辑**
+- **研究任务**: VLA（视觉-语言-动作）模型端到端推理的算力压缩与长程决策成功率优化。
+- **研究动机**: 逐帧全量计算256个视觉Patch是VLA实时部署的算力死穴。现有缓存/剪枝方案割裂视觉复杂度与指令相关性，且无视决策时间步的动态演进，导致关键操作线索被误删或冗余计算持续吸血。
+- **本质改动**: 抛弃启发式阈值与固定相似度，改用信息熵（视觉灰度分布+跨模态注意力聚焦）硬算Token信息含量。叠加时间步调度，强制算力分配从“早期看全貌”平滑滑向“后期盯目标”。
+- **技术溯源**: 寄生于 OpenVLA 基座，缝合 VLA-Cache 的静态KV复用管线。纯推理侧旁路干预（Training-Free）。
 
-**2. 技术拆解**  
-- **重点改进**: 用**信息熵双指标**替代启发式token选择——视觉熵筛选结构丰富区域，注意力熵筛选指令相关区域；引入**时间步α=t/T**线性插值二者权重。  
-- **架构细节**: 输入为图像patch（256 tokens）、文本指令、当前时间步t；输出为动作。每帧仅对Top-k_vis(t)高视觉熵 + Top-k_attn(t)高语义信息量（1−归一化注意力熵）的token重新计算KV，其余复用上一帧KV缓存。k_vis从60降至40，k_attn从40升至60，随t∈[0,T]线性过渡。  
-- **核心 Loss**: 无训练，故无Loss。纯推理时序策略：𝒫_important(t) = Top_{k_vis(t)}(H̃_img) ∪ Top_{k_attn(t)}(Ĩ_attn)，其中H̃_img为归一化图像熵，Ĩ_attn = 1 − H_attn / log₂|𝒲|。  
+**2. 技术拆解**
+- **重点改进**: 双熵联合动态路由。视觉熵锁定高纹理/边缘区域（物理结构关键）；注意力熵捕获文本-视觉交叉注意力的集中程度（低熵=强语义绑定）。引入时间因子α线性重分配保留Token配额，实现“全局上下文→局部指令证据”的算力自适应转移。
+- **架构细节**: 取256视觉Token，逐块计算归一化灰度直方图熵$\tilde{H}_{img}$；提取末层Cross-Attention矩阵，经多头/多层均值化与Softmax得注意力分布$q(w,i)$，转为信息量指标$\tilde{I}_{attn}$。设调度步数$T=100$，视觉保留数$k_{vis}$随$t$递减（60→40），语义保留数$k_{attn}$随$t$递增（40→60）。Top-K筛选出的高信息量Token参与实时计算，剩余低信息Token直接注入KV Cache跳过FFN/Attention开销。
+- **核心 Loss**: 零训练/无Loss。计算开销仅为直方图统计与熵值矩阵运算（<1%额外延迟），不触碰VLA原始权重与前向梯度流。
 
-**3. 实验结果**  
-- **数据集和baseline**: LIBERO基准（4个子任务：Spatial/Object/Goal/Long）；对比OpenVLA、VLA-Cache、SP-VLA、Spec-VLA等7种SOTA方法。  
-- **评价指标**: 任务成功率（↑）、CUDA延迟（↓）、FLOPs（↓）、加速比（↑）。  
-- **实验结果**: 平均成功率**76.4%**（vs OpenVLA 75.0%），**FLOPs降低34.9%**（1.864→1.214），**延迟降低39.8%**（51.91→31.25 ms），**加速比1.53×**，全面超越所有免训练基线，在LIBERO-Spatial（86.4%）和Object（87.6%）上创SOTA。
+**3. 实验结果**
+- **数据集和baseline**: LIBERO 基准（含Spatial/Object/Goal/Long四子集）。硬刚 OpenVLA, SparseVLM, FastV, VLA-Cache, SP-VLA, Spec-VLA 等SOTA加速/优化方案。
+- **评价指标**: 任务成功率(SR↑)、CUDA端到端延迟(Latency↓)、理论浮点运算量(FLOPs↓)、综合加速比。
+- **实验结果**: 平均成功率76.4%（压OpenVLA基线1.4pts，全面超越现有剪枝方案）。FLOPs砍掉34.9%，推理延迟暴跌39.8%，综合加速比1.53×。消融实锤：单模态熵必偏科（视觉漏语义，语义丢结构）；静态加权不及动态滑窗；Token总数超100后性能触顶，算力浪费边际递增。
 
 ---
 </script>
