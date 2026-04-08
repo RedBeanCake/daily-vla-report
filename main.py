@@ -57,15 +57,27 @@ def scrape_arxiv(category):
     except Exception: return None, 0, []
 
 def get_arxiv_full_text(paper_id):
-    """利用 Arxiv HTML 渲染功能抓取正文"""
+    """利用 Arxiv HTML 渲染功能抓取正文，并剔除参考文献以节省 token"""
     url = f"https://arxiv.org/html/{paper_id}"
     try:
         res = requests.get(url, timeout=20)
         if res.status_code != 200: return None
         soup = BeautifulSoup(res.text, 'html.parser')
-        # 移除脚本和样式，保留前 30000 字符以防超出大模型上下文
+        
+        # 1. 移除脚本、样式等无关标签
         for script in soup(["script", "style"]):
             script.decompose()
+
+        # 2. 核心修改：移除参考文献部分
+        # Arxiv HTML 常见的参考文献标识符包括类名 'ltx_bibliography' 或 ID 'bib'
+        ref_tags = soup.find_all(['section', 'div'], class_=re.compile(r'bibliography|references', re.I))
+        ref_tags += soup.find_all(['section', 'div'], id=re.compile(r'bib|references', re.I))
+        
+        for tag in ref_tags:
+            tag.decompose()
+            print(f"[{paper_id}] 已剔除参考文献部分")
+
+        # 3. 返回正文（保留前 30000 字符）
         return soup.get_text()[:30000] 
     except Exception as e:
         print(f"抓取全文出错 {paper_id}: {e}")
@@ -109,7 +121,7 @@ def only_filter_and_report(papers):
         
         try:
             completion = client_llm.chat.completions.create(
-                model="qwen3-max",  # qwen-flash
+                model="qwen3.6-plus",  # qwen-flash, qwen3.6-plus, qwen3-max, qwen3.5-flash
                 messages=[{"role": "user", "content": filter_prompt}]
             )
             res = completion.choices[0].message.content
@@ -182,7 +194,7 @@ def deep_dive_only(papers_to_process):
         try:
             # 深度解析建议用逻辑更强的模型（如 qwen-plus）
             completion = client_llm.chat.completions.create(
-                model="qwen3-max", 
+                model="qwen3.6-plus", 
                 messages=[{"role": "user", "content": expert_prompt}]
             )
             report = completion.choices[0].message.content
