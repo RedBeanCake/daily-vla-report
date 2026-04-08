@@ -121,7 +121,7 @@ def only_filter_and_report(papers):
         
         try:
             completion = client_llm.chat.completions.create(
-                model="qwen3.5-flash",  # qwen-flash, qwen3.6-plus, qwen3-max, qwen3.5-flash
+                model="qwen3.6-plus",  # qwen-flash, qwen3.6-plus, qwen3-max, qwen3.5-flash
                 messages=[{"role": "user", "content": filter_prompt}]
             )
             res = completion.choices[0].message.content
@@ -161,8 +161,8 @@ def deep_dive_only(papers_to_process):
                 full_text = None
         
         expert_prompt = f"""
-        Role: 你是一位具身智能领域资深专家。请模仿 NotebookLM 的深度播客/简报风格，对论文进行高信息密度的“脱水”总结。
-        Task: 拒绝任何废话（如“作者提出”、“本研究发现”），直接输出核心干货，每句话尽量简练。保持刻薄、敏锐，直击技术本质。
+        Role: 你是一位具身智能领域研究员。请用平实、地道的中文对论文进行高信息密度的总结。
+        Task: 像在组会上给同事分享一样，直接讲清楚论文做了什么、改了哪里、效果如何。严禁过度修饰，严禁使用炫技式的词汇。
 
         请严格按以下结构输出（使用 Markdown）：
 
@@ -194,7 +194,7 @@ def deep_dive_only(papers_to_process):
         try:
             # 深度解析建议用逻辑更强的模型（如 qwen-plus）
             completion = client_llm.chat.completions.create(
-                model="qwen3.5-flash", 
+                model="qwen3.6-plus", 
                 messages=[{"role": "user", "content": expert_prompt}]
             )
             report = completion.choices[0].message.content
