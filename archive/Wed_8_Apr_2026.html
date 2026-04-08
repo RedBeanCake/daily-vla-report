@@ -1,0 +1,285 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+            <title>🤖 具身大模型简报 - Wed, 8 Apr 2026 (VLA: 7 of 53 entries)</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <style>
+                html, body { -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+                .sources-box { margin-top: 50px; padding: 20px; background: #f6f8fa; border: 1px dashed #d0d7de; border-radius: 10px; }
+                .sources-box textarea { width: 100%; height: 100px; margin: 10px 0; padding: 10px; font-family: monospace; font-size: 12px; border: 1px solid #d0d7de; border-radius: 6px; resize: none; }
+                .copy-btn { background-color: #2da44e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+            </style>
+        </head>
+        <body class="markdown-body">
+            <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
+            <h1>🤖 具身大模型简报 - Wed, 8 Apr 2026 (VLA: 7 of 53 entries)</h1>
+            <div id="content"></div>
+            
+        <div class="sources-box">
+            <h3>🔗 NotebookLM Sources 集合区 (共 7 篇)</h3>
+            <textarea id="sources-text" readonly>https://arxiv.org/html/2604.05672
+https://arxiv.org/html/2604.05614
+https://arxiv.org/html/2604.05498
+https://arxiv.org/html/2604.05014
+https://arxiv.org/html/2604.04974
+https://arxiv.org/html/2604.06168
+https://arxiv.org/html/2604.05323</textarea>
+            <button class="copy-btn" onclick="copySources()">📋 复制所有来源链接</button>
+        </div>
+        
+            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [$A_1$: A Fully Transparent Open-Source, Adaptive and Efficient Truncated Vision-Language-Action Model] ($A_1$：一个完全透明、开源、自适应且高效的截断式视觉-语言-动作模型)
+- **研究机构**: `SYSU, MBZUAI, Spatialtemporal AI`
+- **Arxiv ID**: `2604.05672` | [点击跳转](https://arxiv.org/abs/2604.05672)
+
+**0. 论文标题**  
+- **英文标题**: $A_1$: A Fully Transparent Open-Source, Adaptive and Efficient Truncated Vision-Language-Action Model  
+- **中文标题**: $A_1$：一个完全透明、开源、自适应且高效的截断式视觉-语言-动作模型  
+- **研究机构**: SYSU, MBZUAI, Spatialtemporal AI  
+
+**1. 整体逻辑**  
+- **研究任务**: 开放世界机器人操作中的高效视觉-语言-动作（VLA）控制  
+- **研究动机**: 现有VLA依赖十亿级VLM主干 + 扩散/流匹配动作头，推理延迟高、计算昂贵，难以在消费级硬件上实现实时控制  
+- **本质改动**: 联合压缩VLM主干与动作头：通过层间动作一致性触发早退，并用跨层截断流匹配实现暖启动去噪，大幅减少有效计算量  
+- **技术溯源**: 基于开源VLM **Molmo**（~7B），动作头采用 **Flow Matching**（仿 $\pi_0$ 架构）或 **MLP**；Qwen3 作为FM解码器（400M参数）  
+
+**2. 技术拆解**  
+- **重点改进**:  
+  - **Early-Termination Inference**：监控相邻VLM层输出的动作块差异，低于阈值即终止前向传播  
+  - **Inter-Layer Truncated Flow Matching**：每层仅执行 $\delta=2$ 步去噪，且下一层的初始噪声为上一层的去噪结果（非随机），形成跨层暖启动  
+- **架构细节**:  
+  - 输入：多视角RGB图像 + 本体感知状态 + 自然语言指令  
+  - 输出：未来 $H$ 步连续动作块 $\mathbf{A}_t \in \mathbb{R}^{H \times D}$  
+  - 主干：冻结ViT，微调Molmo语言部分；动作头共享，支持任意中间层桥接  
+  - 训练时对所有层监督动作损失，实现“全路径可早退”  
+- **核心 Loss**:  
+  - Flow Matching：$\mathcal{L}^{\tau} = \mathbb{E} \| \mathbf{v}_\theta(\mathbf{A}_t^\tau, \mathbf{o}_t) - (\boldsymbol{\epsilon} - \mathbf{A}_t) \|^2$，$\tau \sim \text{Beta}$  
+  - MLP：L1回归损失 $\| \hat{\mathbf{A}}_t - \mathbf{A}_t \|$  
+  - 无辅助重建任务，纯动作监督  
+
+**3. 实验结果**  
+- **数据集和baseline**:  
+  - 数据集：DROID, AgiBot, RoboCOIN, RoboMind, GM-100, RoboChallenge + 自采15,951条真实轨迹  
+  - Baseline：$\pi_0$, X-VLA, RDT-1B, DeeR-VLA 等开源VLA  
+- **评价指标**:  
+  - 成功率（simulation / real-world / RoboChallenge）  
+  - 推理延迟（秒/episode）、主干计算量（FLOPs或层激活比例）  
+- **实验结果**:  
+  - **RoboChallenge**：29.00% 成功率，超越 $\pi_0$（28.33%）、X-VLA（21.33%）、RDT-1B（15.00%）  
+  - **真实机器人**（Franka等4平台）：平均成功率 **56.7%**  
+  - **效率**：流匹配推理延迟降低 **72%**（37.8s → 10.5s/episode），主干计算减少 **76.6%**，性能几乎无损  
+  - 消融证实：早退机制 + 跨层截断FM 是性能-效率平衡的关键，单独使用任一模块收益有限
+
+---
+
+
+### 2. 🔥 [Grounding Hierarchical Vision-Language-Action Models Through Explicit Language-Action Alignment] (通过显式语言-动作对齐实现分层视觉-语言-动作模型的具身接地)
+- **研究机构**: `The University of Manchester`
+- **Arxiv ID**: `2604.05614` | [点击跳转](https://arxiv.org/abs/2604.05614)
+
+**0. 论文标题**  
+- **英文标题**: Grounding Hierarchical Vision-Language-Action Models Through Explicit Language-Action Alignment  
+- **中文标题**: 通过显式语言-动作对齐实现分层视觉-语言-动作模型的具身接地  
+- **研究机构**: The University of Manchester  
+
+**1. 整体逻辑**  
+- **研究任务**: 在分层VLA中同步生成低层级自然语言子任务描述与对应动作轨迹，并确保二者在视觉环境中的语义对齐。  
+- **研究动机**: 现有分层VLA虽能生成语言（如chain-of-thought）和动作，但训练目标割裂，缺乏语言-动作-视觉三者的显式对齐机制，导致“解释”与行为脱节，透明性虚假。  
+- **本质改动**: 引入一个独立训练的动作条件化对比模型作为“接地评分器”，用其生成偏好对（grounded vs. ungrounded），驱动VLA通过SimPO偏好学习对齐语言与动作。  
+- **技术溯源**: 基于 Gemma-3-4B-IT（高阶VLM）、SmolVLA（底层策略）、SigLIP 2 ViT-B/16（视觉编码器）；偏好优化采用 SimPO（无需参考模型的DPO变种）。  
+
+**2. 技术拆解**  
+- **重点改进**: 不再依赖人工标注中间语言步骤，而是用可学习的对比模型自动评估语言-动作-视觉三元组的一致性，并以此构建偏好信号进行微调。  
+- **架构细节**:  
+  - 高阶VLM（Gemma3）输入高层指令+图像，输出低阶语言子目标；  
+  - 低阶VLA（SmolVLA）接收该子目标+图像+末端状态，输出8步2D动作轨迹；  
+  - 接地模型：冻结SigLIP 2视觉/文本编码器 + 可训练动作Transformer + FiLM调制视觉特征 + 投影层 → 共享嵌入空间。  
+- **核心 Loss**:  
+  - 接地模型：对称InfoNCE对比损失 + 多样性正则项（防嵌入坍缩）；  
+  - VLA微调：SimPO偏好损失，奖励信号直接来自接地模型的归一化对数概率得分。  
+
+**3. 实验结果**  
+- **数据集和baseline**: LanguageTable（含人类标注的分层语言-动作轨迹）；对比 Supervised（全监督微调）、GPLA（不同接地模型变体）、Low-Level Only（仅动作）。  
+- **评价指标**:  
+  - 语言质量：BLEU、ROUGE-1、METEOR、BERTScore；  
+  - 轨迹精度：MSE↓、MAE↓、Cosine Similarity↓（越低越好？原文负值存疑，应为绝对误差或方向一致性）。  
+- **实验结果**:  
+  - GPLA（动作条件化）在语言指标上显著优于CLIP/SigLIP基线（ROUGE 0.300 vs 0.298/0.307），接近Supervised（0.405）；  
+  - 动作轨迹性能与Supervised相当（MSE≈0.045，MAE≈0.163），证明无需中间标注即可逼近全监督效果；  
+  - “Supervised + GPLA”组合反而语言质量下降（BLEU 0.051），暗示过度优化可能损害原始语义保真度。
+
+---
+
+
+### 3. 🔥 [JailWAM: Jailbreaking World Action Models in Robot Control] (JailWAM：针对机器人控制中世界动作模型的越狱攻击)
+- **研究机构**: `上海交通大学人工智能研究院、南京大学PR Lab、中国军事科学院国防科技创新研究院`
+- **Arxiv ID**: `2604.05498` | [点击跳转](https://arxiv.org/abs/2604.05498)
+
+**0. 论文标题**  
+- **英文标题**: JailWAM: Jailbreaking World Action Models in Robot Control  
+- **中文标题**: JailWAM：针对机器人控制中世界动作模型的越狱攻击  
+- **研究机构**: 上海交通大学人工智能研究院、南京大学PR Lab、中国军事科学院国防科技创新研究院  
+
+**1. 整体逻辑**  
+- **研究任务**: 对世界动作模型（WAM）实施物理层面的越狱攻击，并评估其安全对齐能力。  
+- **研究动机**: WAM具备强物理操控能力，但现有工作忽视其对越狱攻击的脆弱性——一旦绕过安全机制，可直接引发人身伤害或设备损毁。  
+- **本质改动**: 将越狱攻击从“数字有害输出”升级为“物理危险行为”，并构建首个面向WAM的系统化攻击与评估框架。  
+- **技术溯源**: 基于LingBot-VA、Cosmos-Policy等主流WAM架构；使用Qwen3-VL作为风险判别器基座；依赖Gemini-3.1-Pro进行自动标注。  
+
+**2. 技术拆解**  
+- **重点改进**: 提出三组件框架：(1) Visual-Trajectory Mapping统一异构动作空间；(2) Risk Discriminator高效筛出高危轨迹；(3) Dual-Path Verification兼顾效率与物理真实性。  
+- **架构细节**: 输入为初始观测+状态+对抗指令；输出为H步动作序列；通过积分将相对动作转为绝对末端轨迹，正交投影生成xy/xz双视图轨迹图；Risk Discriminator为微调后的Qwen3-VL-2B，输入轨迹图+指令，输出{0,1,2}安全等级。  
+- **核心 Loss**: 无显式训练Loss——Risk Discriminator采用监督分类损失（交叉熵），标签由Gemini+人工校验生成；主流程依赖策略黑盒采样，不更新WAM参数。  
+
+**3. 实验结果**  
+- **数据集和baseline**: 在RoboTwin和LIBERO仿真环境中测试LingBot-VA、Motus、Cosmos-Policy、π₀.₅；对比Clean、RSA（随机后缀）、TPA（模板攻击）三种基线。  
+- **评价指标**: Attack Success Rate (ASR) = Motion Failure Rate (MFR, Level 1) + Catastrophic Risk Rate (CRR, Level 2)，由人类专家在闭环仿真视频中最终判定。  
+- **实验结果**: JailWAM在LingBot-VA上达成84.2% ASR（人类验证），远超TPA（4.2%）和RSA（5.2%）；在Motus上达60.6% ASR，证明漏洞跨架构存在；非WAM模型π₀.₅仅0.8% ASR，说明风险集中于生成式世界模型。
+
+---
+
+
+### 4. 🔥 [StarVLA: A Lego-like Codebase for Vision-Language-Action Model Developing] (StarVLA：一个乐高式视觉-语言-动作模型开发代码库)
+- **研究机构**: `StarVLA Community & Von Neumann Institute, HKUST`
+- **Arxiv ID**: `2604.05014` | [点击跳转](https://arxiv.org/abs/2604.05014)
+
+**0. 论文标题**  
+- **英文标题**: StarVLA: A Lego-like Codebase for Vision-Language-Action Model Developing  
+- **中文标题**: StarVLA：一个乐高式视觉-语言-动作模型开发代码库  
+- **研究机构**: StarVLA Community & Von Neumann Institute, HKUST  
+
+**1. 整体逻辑**  
+- **研究任务**: 构建统一、可复现、模块化的 VLA（Vision-Language-Action）系统开发框架  
+- **研究动机**: 当前 VLA 研究碎片化严重——架构互不兼容、训练流程耦合、评测协议混乱，阻碍公平比较与技术积累  
+- **本质改动**: 提出 backbone–action-head 解耦架构 + 统一 I/O 接口 + 标准化训练/评测流水线，实现“乐高式”组合  
+- **技术溯源**: 支持主流 VLM（如 Qwen-VL）和世界模型（如 Cosmos）作为 backbone；整合 FAST、OFT、π₀、GR00T 四类 action head  
+
+**2. 技术拆解**  
+- **重点改进**: 将 VLA 系统抽象为 π(a, y_aux | x, ℓ)，统一 VLM-based 与 world-model-based 方法为同一策略框架下的不同 ℒ_aux 实例  
+- **架构细节**:  
+  - 输入：原始多视角 RGB 图像 + 自然语言指令（无预处理依赖）  
+  - 输出：归一化动作 chunk（支持 open-loop 多步预测）  
+  - Backbone：可插拔（Qwen-VL、InternVL、Cosmos 等）  
+  - Action Head：四类可选（FAST：自回归离散 token；OFT：并行 MLP 回归；π：flow-matching denoising；GR00T：双系统推理）  
+- **核心 Loss**: ℒ = ℒ_action + ℒ_aux  
+  - ℒ_action：动作监督（token 交叉熵 / L1 回归 / flow-matching loss）  
+  - ℒ_aux：可选辅助任务（未来图像预测、子目标语言生成等），用于注入归纳偏置  
+
+**3. 实验结果**  
+- **数据集和baseline**:  
+  - 数据集：LIBERO、SimplerEnv、RoboCasa-GR1、RoboTwin 2.0、BEHAVIOR-1K  
+  - Baseline：OpenVLA-OFT、Isaac-GR00T、X-VLA 等开源方法  
+- **评价指标**: 任务成功率（task success rate）在各 benchmark 标准协议下评估，支持 sim-to-real 部署一致性验证  
+- **实验结果**:  
+  - 单 benchmark 训练：仅用 minimal data engineering，StarVLA 在多个 benchmark 上匹配或超越 SOTA（如 LIBERO-Spatial 达 85%+）  
+  - 跨 benchmark 通用模型：首次实现五 benchmark 联合训练的通用 VLA，性能无显著下降  
+  - 模块组合有效性：相同 backbone + 不同 head 可直接对比，验证 OFT 快但精度低，π 更稳但慢，FAST 适合离散控制  
+  - 训练效率：单节点吞吐达 1.8× OpenVLA，多节点线性扩展至 32 GPU
+
+---
+
+
+### 5. 🔥 [From Video to Control: A Survey of Learning Manipulation Interfaces from Temporal Visual Data] (从视频到控制：基于时序视觉数据学习操作接口的综述)
+- **研究机构**: `The University of Hong Kong, Southern University of Science and Technology, Peng Cheng Laboratory, LimX Dynamics`
+- **Arxiv ID**: `2604.04974` | [点击跳转](https://arxiv.org/abs/2604.04974)
+
+**0. 论文标题**  
+- **英文标题**: From Video to Control: A Survey of Learning Manipulation Interfaces from Temporal Visual Data  
+- **中文标题**: 从视频到控制：基于时序视觉数据学习操作接口的综述  
+- **研究机构**: The University of Hong Kong, Southern University of Science and Technology, Peng Cheng Laboratory, LimX Dynamics  
+
+**1. 整体逻辑**  
+- **研究任务**: 如何从无动作标注的时序视频中学习可用于机器人操作的控制接口。  
+- **研究动机**: 动作标注的机器人数据昂贵且难以扩展，而海量无标注视频（人类/机器人）蕴含丰富的物理动态信息，但缺乏与机器人动作的对齐、存在视角/本体差异，导致直接迁移失效。  
+- **本质改动**: 不聚焦模型架构，而是按“视频→控制”接口的设计位置与显式程度划分方法家族，强调控制闭环集成属性。  
+- **技术溯源**: 涵盖基于扩散模型（如VidMan、UWM）、世界模型（如ContextWM）、VLA扩展（如LAPA、UniVLA）、光流/轨迹预测（如ATM、GeneralFlow）等多类技术，但统一以无动作视频为时序监督源。  
+
+**2. 技术拆解**  
+- **重点改进**: 提出三大家族分类法：(1) 隐式端到端视频–动作策略；(2) 通过紧凑隐动作中间表示路由；(3) 生成可解释的显式视觉目标（子目标图像、轨迹、位姿）。  
+- **架构细节**:  
+  - 家族I：共享骨干同时预测未来帧与动作（如GR-1、PAD），或用视频预训练编码器后接动作头（如VPP）；  
+  - 家族II：先从无动作视频学离散/连续隐动作（如LAPO用VQ，CLASP用信息瓶颈），再用少量机器人数据映射到真实动作；  
+  - 家族III：输出结构化目标——子目标图像（SuSIE）、密集视频计划（Dreamitate）、2D像素轨迹（Track2Act）、6D位姿序列（ZeroMimic），由下游控制器跟踪。  
+- **核心 Loss**: 依赖时序预测损失（如未来帧重建、光流一致性、潜变量过渡建模），无直接动作监督；动作仅在接地阶段用于微调/逆动力学拟合。  
+
+**3. 实验结果**  
+- **数据集和baseline**: 覆盖人类视频（Ego4D、EPIC-Kitchens）、机器人视频（无动作标签）、仿真/真实机器人基准（如R2R、BridgeData）；对比对象为各家族内部代表性方法，非统一baseline。  
+- **评价指标**: 分散且不一致——任务成功率、轨迹误差、人工评估、跨本体迁移能力；缺乏统一验证协议。  
+- **实验结果**: 无绝对优胜家族。显式接口（家族III）可解释性强、易验证，但感知-接地链路脆弱；隐式端到端（家族I）部署简单但黑箱、难迁移；隐动作（家族II）折中，但代码可能混杂可控/外生变化，接地易崩。关键瓶颈不在视频建模，而在**机器人集成层**（闭环执行、物理一致性、故障恢复）。
+
+---
+
+
+### 6. 🔥 [Action Images: End-to-End Policy Learning via Multiview Video Generation] (动作图像：通过多视角视频生成实现端到端策略学习)
+- **研究机构**: `UMass Amherst, UTokyo, NVIDIA, Harvard University, Genesis AI`
+- **Arxiv ID**: `2604.06168` | [点击跳转](https://arxiv.org/abs/2604.06168)
+
+**0. 论文标题**  
+- **英文标题**: Action Images: End-to-End Policy Learning via Multiview Video Generation  
+- **中文标题**: 动作图像：通过多视角视频生成实现端到端策略学习  
+- **研究机构**: UMass Amherst, UTokyo, NVIDIA, Harvard University, Genesis AI  
+
+**1. 整体逻辑**  
+- **研究任务**: 将机器人策略学习建模为多视角视频生成问题，联合生成观测视频与动作表示。  
+- **研究动机**: 现有世界模型（WAM）的动作表示非像素对齐，依赖额外策略头，导致视频泛化能力无法有效转化为策略泛化能力；跨视角、跨环境迁移失败。  
+- **本质改动**: 将7-DoF机器人动作编码为“动作图像”——一种多视角、像素对齐、可解释的视觉热力图序列，使视频主干网络自身成为零样本策略器。  
+- **技术溯源**: 基于预训练视频生成模型 Wan 2.2（类似Sora架构），使用3D-VAE进行tokenization，结合Flow Matching优化目标。
+
+**2. 技术拆解**  
+- **重点改进**: 动作不再作为低维向量或隐式token，而是渲染为RGB热力图：红=末端位置，绿=法向方向，蓝=上方向+夹爪开合度。  
+- **架构细节**: 输入为多视角RGB视频 + 对应动作图像，拼接成统一时序序列（长度2T），经共享权重3D-VAE编码后输入Transformer主干；支持文本、相机位姿条件注入；多视角通过Plücker嵌入实现几何一致性。  
+- **核心 Loss**: Flow Matching下的L2速度损失，仅作用于掩码区域；训练采用四种掩码策略：(1) 联合生成视频+动作，(2) 动作条件视频生成，(3) 视频推断动作（即策略），(4) 仅视频生成（用于无动作标注数据）。
+
+**3. 实验结果**  
+- **数据集和baseline**: RLBench（180k轨迹）、DROID（80k真实多视角）、BridgeV2（30k）；对比MV-Policy、π₀.₅、MolmoAct、TesserAct、Cosmos-Policy等主流VLA/世界模型方法。  
+- **评价指标**: 零样本单次开环执行成功率（无需在线重规划），在RLBench和真实世界多个任务上评估。  
+- **实验结果**: 在RLBench上，“pick cup”任务达60%成功率（第二名仅5%）；“close drawer”达50%（第二名20%）；真实世界“Close Drawer”达45%（其余方法≤5%）。整体大幅领先，证明像素对齐动作表示显著提升策略泛化能力。
+
+---
+
+
+### 7. 🔥 [VLA-InfoEntropy: A Training-Free Vision-Attention Information Entropy Approach for Vision-Language-Action Models Inference Acceleration and Success] (VLA-InfoEntropy：一种免训练的视觉-注意力信息熵方法，用于视觉-语言-动作模型的推理加速与成功率提升)
+- **研究机构**: `Chinese Academy of Sciences, University of Chinese Academy of Sciences`
+- **Arxiv ID**: `2604.05323` | [点击跳转](https://arxiv.org/abs/2604.05323)
+
+**0. 论文标题**  
+- **英文标题**: VLA-InfoEntropy: A Training-Free Vision-Attention Information Entropy Approach for Vision-Language-Action Models Inference Acceleration and Success  
+- **中文标题**: VLA-InfoEntropy：一种免训练的视觉-注意力信息熵方法，用于视觉-语言-动作模型的推理加速与成功率提升  
+- **研究机构**: Chinese Academy of Sciences, University of Chinese Academy of Sciences  
+
+**1. 整体逻辑**  
+- **研究任务**: 在不重训模型的前提下，加速VLA（Vision-Language-Action）模型推理并维持/提升任务成功率。  
+- **研究动机**: 现有VLA推理对冗余视觉token无差别计算，导致高延迟；现有免训练加速方法（如VLA-Cache）仅依赖注意力或静态视觉相似性，忽略语义相关性与时间动态性。  
+- **本质改动**: 引入**视觉熵**（衡量纹理复杂度）和**注意力熵**（衡量跨模态语义聚焦度），结合**时间步自适应调度**，动态选择关键token，其余复用KV缓存。  
+- **技术溯源**: 基于OpenVLA架构，继承VLA-Cache的KV复用机制，但替换其token重要性判据为信息熵指标。  
+
+**2. 技术拆解**  
+- **重点改进**: 用**信息熵双指标**替代启发式token选择——视觉熵筛选结构丰富区域，注意力熵筛选指令相关区域；引入**时间步α=t/T**线性插值二者权重。  
+- **架构细节**: 输入为图像patch（256 tokens）、文本指令、当前时间步t；输出为动作。每帧仅对Top-k_vis(t)高视觉熵 + Top-k_attn(t)高语义信息量（1−归一化注意力熵）的token重新计算KV，其余复用上一帧KV缓存。k_vis从60降至40，k_attn从40升至60，随t∈[0,T]线性过渡。  
+- **核心 Loss**: 无训练，故无Loss。纯推理时序策略：𝒫_important(t) = Top_{k_vis(t)}(H̃_img) ∪ Top_{k_attn(t)}(Ĩ_attn)，其中H̃_img为归一化图像熵，Ĩ_attn = 1 − H_attn / log₂|𝒲|。  
+
+**3. 实验结果**  
+- **数据集和baseline**: LIBERO基准（4个子任务：Spatial/Object/Goal/Long）；对比OpenVLA、VLA-Cache、SP-VLA、Spec-VLA等7种SOTA方法。  
+- **评价指标**: 任务成功率（↑）、CUDA延迟（↓）、FLOPs（↓）、加速比（↑）。  
+- **实验结果**: 平均成功率**76.4%**（vs OpenVLA 75.0%），**FLOPs降低34.9%**（1.864→1.214），**延迟降低39.8%**（51.91→31.25 ms），**加速比1.53×**，全面超越所有免训练基线，在LIBERO-Spatial（86.4%）和Object（87.6%）上创SOTA。
+
+---
+</script>
+            <script>
+                const rawMdElement = document.getElementById('raw-markdown');
+                if (rawMdElement) { document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent); }
+                function copySources() {
+                    const textArea = document.getElementById('sources-text');
+                    textArea.select();
+                    document.execCommand('copy');
+                    alert('已复制链接');
+                }
+            </script>
+        </body>
+        </html>
+        
