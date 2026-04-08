@@ -194,7 +194,7 @@ def deep_dive_only(papers_to_process):
         try:
             # 深度解析建议用逻辑更强的模型（如 qwen-plus）
             completion = client_llm.chat.completions.create(
-                model="qwen3.5-flash",  # qwen3.6-plus, qwen3.5-flash
+                model="qwen3.6-plus",  # qwen3.6-plus, qwen3.5-flash
                 messages=[{"role": "user", "content": expert_prompt}]
             )
             report = completion.choices[0].message.content
@@ -282,19 +282,19 @@ def generate_archive_and_index(date_info, arxiv_content):
         </html>
         """
 
-    sources_html = ""
-    if sources_text:
-        sources_html = f"""
-        <div class="sources-box">
-            <h3>🔗 NotebookLM Sources 集合区 (共 {len(paper_ids)} 篇)</h3>
-            <textarea id="sources-text" readonly>{sources_text}</textarea>
-            <button class="copy-btn" onclick="copySources()">📋 复制所有来源链接</button>
-        </div>
-        """
+    # sources_html = ""
+    # if sources_text:
+    #     sources_html = f"""
+    #     <div class="sources-box">
+    #         <h3>🔗 NotebookLM Sources 集合区 (共 {len(paper_ids)} 篇)</h3>
+    #         <textarea id="sources-text" readonly>{sources_text}</textarea>
+    #         <button class="copy-btn" onclick="copySources()">📋 复制所有来源链接</button>
+    #     </div>
+    #     """
 
     # 仅保存 Arxiv 内容
     with open(daily_file_path, "w", encoding="utf-8") as f:
-        f.write(get_html_template(f"🤖 具身大模型简报 - {display_title}", arxiv_content or "", False, sources_html))
+        f.write(get_html_template(f"🤖 具身大模型简报 - {display_title}", arxiv_content or "", False, ""))
 
     history_files = [f for f in os.listdir('archive') if f.endswith('.html')]
     indexed_history = []
