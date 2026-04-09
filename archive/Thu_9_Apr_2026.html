@@ -1,0 +1,75 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>🤖 具身大模型简报 - Thu, 9 Apr 2026 (VLA: 1 of 28 entries)</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <script>
+                window.MathJax = {
+                    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+                    options: { skipHtmlTags: ['script', 'style', 'textarea'] }
+                };
+            </script>
+            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+            <style>
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+            </style>
+        </head>
+        <body class="markdown-body">
+            <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
+            <h1>🤖 具身大模型简报 - Thu, 9 Apr 2026 (VLA: 1 of 28 entries)</h1>
+            <div id="content"></div>
+            
+            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [Flow Motion Policy: Manipulator Motion Planning with Flow Matching Models] (流匹配运动策略：基于流匹配模型的机械臂运动规划)
+- **研究机构**: `Texas A&M University (德州农工大学)`
+- **Arxiv ID**: `2604.07084` | [点击跳转](https://arxiv.org/abs/2604.07084)
+
+**0. 论文标题**
+- **英文标题**: Flow Motion Policy: Manipulator Motion Planning with Flow Matching Models
+- **中文标题**: 流匹配运动策略：基于流匹配模型的机械臂运动规划
+- **研究机构**: Texas A&M University (德州农工大学)
+
+**1. 整体逻辑**
+- **研究任务**: 机械臂端到端开环运动规划。输入起点构型、目标构型及场景/本体点云，直接输出无碰撞的关节轨迹。
+- **研究动机**: 现有端到端神经规划器多为确定性策略，单次查询仅输出一条轨迹，无法在推理阶段利用“多采择优”（Best-of-N）。而传统采样/优化方法在规划过程中强依赖碰撞检测器，计算开销大，难以实现高效并行多选。
+- **本质改动**: 将确定性策略头替换为随机生成式的流匹配（Flow Matching）模型，把轨迹规划转化为条件分布采样问题。规划阶段完全剥离碰撞检测，推理时并行生成N条候选轨迹，事后批量进行轻量化碰撞筛选，直接取第一条无碰撞路径执行。
+- **技术溯源**: 基于条件流匹配（Conditional Flow Matching）理论自研。未依赖大模型基座，底层视觉-几何编码采用 PointNet++，序列建模采用标准 Transformer，训练数据由 LLM 生成场景 + cuRobo 优化器生成参考轨迹构成。
+
+**2. 技术拆解**
+- **重点改进**: 1) 引入 Flow Matching 作为策略解码头，建模多模态可行路径分布；2) 设计推理期 Best-of-N 采样管线：并行生成 N 条自回归轨迹 → 调用 cuRobo 批量并行碰撞检查 → 贪心选取第一条零碰撞轨迹。规划与验证解耦，规避了推理时的迭代优化瓶颈。
+- **架构细节**: 
+  - **输入**: 当前位姿 $q_t$、目标位姿 $q_{goal}$（MLP 编码）；机械臂点云 $\mathcal{P}_r$、工作空间点云 $\mathcal{P}_w$（PointNet++ 提取集合特征）。
+  - **编码**: 四类特征拼接可学习的角色 Token，送入 Transformer Encoder 进行跨模态交互。
+  - **解码/采样**: Flow Head 为 MLP，以可学习动作 Token 和 Transformer 输出为条件，预测连续时间向量场。推理时从 $\tau=1$ 到 $\tau=0$ 积分 ODE 还原动作块，按 chunk 自回归 rollout。
+- **核心 Loss**: 标准条件流匹配 MSE 损失。$\mathcal{L} = \mathbb{E} \| v_\theta(x^\tau, \tau, \mathcal{O}) - (\epsilon - x^0) \|^2$。其中 $x^0$ 为真实关节增量序列，$\epsilon$ 为同维度高斯噪声，$v_\theta$ 为网络预测的向量场。无额外重建或对比辅助 Loss。
+
+**3. 实验结果**
+- **数据集和baseline**: 
+  - **数据集**: 自构建。LLM 随机生成多类障碍场景，cuRobo 规划器生成高质量无碰撞轨迹作为训练真值。
+  - **Baseline**: 传统采样规划（Bi-RRT, BIT*）、神经引导采样（MPNets, SIMPNet, GAIDE）、端到端确定性规划（PerFACT）。
+- **评价指标**: 规划耗时 $T$ (秒)、成功率 $S$ (%)。覆盖桌面、盒子、料框、货架及多子任务测试集。
+- **实验结果**: 
+  - 单样本生成 (FMP-1) 极快 (~0.16s)，但受限于单点预测，成功率在 33%~75% 波动。
+  - 启用 Best-of-100 (FMP-100) 后，耗时微增至 0.38~0.81s，成功率跃升（如 Bins 场景达 96.75%，TableTop 达 84%）。
+  - 对比 Baseline：全面优于传统方法（Bi-RRT/BIT* 耗时 1~4s 且成功率不稳定），在速度相近的情况下显著碾压现有端到端方法（PerFACT 虽快至 0.2s 但成功率仅 33%~61%）。证明“流生成+事后批量筛选”能在极低延迟下大幅提升复杂场景的规划鲁棒性。
+
+---
+</script>
+            <script>
+                const rawMdElement = document.getElementById('raw-markdown');
+                if (rawMdElement) {
+                    document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent);
+                    // 渲染后触发公式排版
+                    if (window.MathJax && window.MathJax.typesetPromise) {
+                        window.MathJax.typesetPromise();
+                    }
+                }
+                function copySources() { /* 原代码保持不变 */ }
+            </script>
+        </body>
+        </html>
+        
