@@ -1,0 +1,218 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>🤖 具身大模型简报 - Fri, 10 Apr 2026 (VLA: 5 of 51 entries)</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <script>
+                window.MathJax = {
+                    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+                    options: { skipHtmlTags: ['script', 'style', 'textarea'] }
+                };
+            </script>
+            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+            <style>
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+            </style>
+        </head>
+        <body class="markdown-body">
+            <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
+            <h1>🤖 具身大模型简报 - Fri, 10 Apr 2026 (VLA: 5 of 51 entries)</h1>
+            <div id="content"></div>
+            
+            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [ViVa: A Video-Generative Value Model for Robot Reinforcement Learning] (ViVa：一种用于机器人强化学习的视频生成价值模型)
+- **研究机构**: `GigaAI, 四川大学, 清华大学`
+- **Arxiv ID**: `2604.08168` | [点击跳转](https://arxiv.org/abs/2604.08168)
+
+**0. 论文标题**
+- **英文标题**: ViVa: A Video-Generative Value Model for Robot Reinforcement Learning
+- **中文标题**: ViVa：一种用于机器人强化学习的视频生成价值模型
+- **研究机构**: GigaAI, 四川大学, 清华大学
+
+**1. 整体逻辑**
+- **研究任务**: 机器人强化学习中的价值函数（Value Function）估计，用于评估长程交互中的任务进度，并为策略梯度（如RECAP框架）提供优势函数计算信号。
+- **研究动机**: 现有基于 VLM 的价值函数依赖静态图文数据训练，只能做单帧语义判别，缺乏对物理交互时间演化的显式建模。在实际操控中，这导致价值估计对执行错误不敏感，难以区分“稳步推进”和“即将失败”，影响策略优化。
+- **本质改动**: 将价值估计从“静态分类”改为“动态生成预测”。直接复用预训练视频生成模型，利用其学到的时空先验，在给定当前观测时同步“推演”未来的本体状态和当前状态的价值标量，用预测能力替代静态判别。
+- **技术溯源**: 生成基座采用开源视频扩散模型 Wan2.2；策略与强化学习流水线基于 Physical Intelligence 的 RECAP 框架及 Gigabrain-0 / π0 系列策略网络。
+
+**2. 技术拆解**
+- **重点改进**: 统一 Latent 表示与多目标联合预测。将多模态输入/输出全部对齐到视频扩散模型的 Latent 帧空间。本体感觉（proprioception）和标量价值不再用独立网络处理，而是通过重复填充（repeat-padding）和广播（broadcast）强行拉伸成与图像 Latent 相同尺寸的张量，直接拼入视频序列。
+- **架构细节**: 序列固定为 7 帧。前 5 帧为干净条件：空白占位帧 + 当前关节状态 + 3 视角当前图像。后 2 帧为带噪目标：未来 K 步关节状态 + 当前价值标量。训练时加随机噪声，让扩散 Transformer 学习去噪。推理时仅输入条件帧，跑 1 步 DDIM 反向过程得到后两帧，将价值 Latent 所有通道求平均并反归一化即得标量值。作者明确测试了不联合预测未来图像帧，因为图像重建的优化难度会干扰低维价值信号的收敛。
+- **核心 Loss**: 采用 Flow Matching（流匹配）的加权 MSE。`L = λ_prop * L2(prop去噪误差) + λ_val * L2(val去噪误差)`。价值监督信号采用分段设计：成功轨迹的逐步累积回报归一化至 `[0, 1)`；失败轨迹在终点叠加 1 的惩罚，落入 `[1, 2)`。这种设计保证任何时间步下，成功与失败的价值区间都有固定的 1.0 间隔，消除进度与失败的混淆。
+
+**3. 实验结果**
+- **数据集和baseline**: 真实世界采集的三项长程双手机械臂任务（折衬衫、纸箱打包组装、卷纸整理）。对比方法包括：纯模仿学习的 π0.5 / Gigabrain-0，以及 RECAP 框架下使用标准 VLM 分类头（201 类离散化回报）的价值函数变体。控制变量为仅替换价值模块，其余训练设置一致。
+- **评价指标**: 任务成功率、操作吞吐量、价值曲线定性分析（对操作失误的响应延迟/幅度、随进度的单调性）、跨未见物体泛化能力。
+- **实验结果**: 在纸箱组装任务中，ViVa 的成功率和吞吐量均优于 VLM 价值基线。定性分析表明：VLM 价值曲线常出现平台期或无意义波动，对中途失误（如物品滑落）反应迟钝；ViVa 价值曲线能平稳反映任务推进，一旦检测到执行错误会立刻断崖式下降，提供了更准确的信用分配信号。消融实验确认：必须联合预测未来关节状态以注入动力学先验；强行加入未来图像预测会拉低价值精度。模型在分布外新物体上也能保持较稳定的泛化表现。
+
+---
+
+
+### 2. 🔥 [HEX: Humanoid-Aligned Experts for Cross-Embodiment Whole-Body Manipulation] (HEX：面向跨具身全身操作的人形对齐专家网络)
+- **研究机构**: `北京人形机器人创新中心、西安交通大学、南开大学、北京大学`
+- **Arxiv ID**: `2604.07993` | [点击跳转](https://arxiv.org/abs/2604.07993)
+
+**0. 论文标题**
+- **英文标题**: HEX: Humanoid-Aligned Experts for Cross-Embodiment Whole-Body Manipulation
+- **中文标题**: HEX：面向跨具身全身操作的人形对齐专家网络
+- **研究机构**: 北京人形机器人创新中心、西安交通大学、南开大学、北京大学
+
+**1. 整体逻辑**
+- **研究任务**: 全尺寸双足人形机器人的全身协同操控（高层VLA策略 + 底层RL全身控制器）
+- **研究动机**: 现有VLA模型多将身体各部位解耦控制，或依赖人工划分行走/操作模块。这种设计缺乏对全身动力学耦合与动态平衡的显式建模，导致高自由度人形机器人在快速响应和长程任务中容易动作割裂或失稳。
+- **本质改动**: 提出“回顾-预测”(Review-Forecast)范式。不直接让模型从当前帧硬映射关节动作，而是先用统一的状态表示建模全身部位的短时序动态与交互，再将视觉语义上下文与预测的未来身体状态融合，生成高层动作指令供底层控制器执行。
+- **技术溯源**: 未强依赖单一开源VLA基座。整体采用“通用VLM视觉编码器 + 自研MoE-Transformer本体预测器 + Flow-Matching动作生成头”的架构路线，预训练数据为多源人形机器人跨形态轨迹数据。
+
+**2. 技术拆解**
+- **重点改进**: 
+  1. 视觉历史轻量缓存，解决长序列重复编码带来的算力浪费。
+  2. 基于身体部位划分的MoE统一本体感受预测器(UPP)，解决不同机器人形态/传感器配置的状态输入对齐问题，并显式建模跨部位协同。
+  3. 双流自适应门控融合机制，让动作去噪过程同时受视觉任务意图和身体未来动力学约束。
+- **架构细节**:
+  - **VLM+历史缓存**: 仅对当前帧视觉和指令编码，通过Query Token提取特征存入定长队列($\tau_v=2$)。推理时不回放历史图像，仅用缓存特征提供近期语义上下文。
+  - **UPP (MoE-Transformer)**: 将原始本体感受数据映射到固定身体部位槽位（左/右臂、手、腿、头、腰，缺失补可学习Token）。拼接可学习的未来Query Token后，经时序/部位位置编码，送入Transformer。Transformer首尾各接一层Morphology-aware MoE：通过Top-K路由将Token分发至特定专家+共享专家，中间共享Transformer建模无形态依赖的时序演化，输出未来$\tau_p$步的潜空间状态。
+  - **Action Expert**: 采用Flow-Matching框架。以带噪动作序列为起点，分别对VLM特征和UPP预测特征做交叉注意力。计算门控权重$\mathbf{g}_t$对两路特征加权求和，残差更新到动作隐状态中。迭代去噪后输出控制臂/手的高层指令，底层由预训练RL策略（DeepMimic参考跟踪或AMP对抗先验）转化为保平衡的高频全身关节指令。
+- **核心 Loss**:
+  - **主任务Loss ($\mathcal{L}_a$)**: Flow-Matching速度场预测MSE Loss，监督动作专家在双流条件下去噪生成高层轨迹。
+  - **辅助任务Loss ($\mathcal{L}_s$)**: 未来本体感受状态预测MSE Loss，监督UPP在共享潜空间中拟合真实短时序身体动态。
+  - **联合优化**: $\mathcal{L} = \mathcal{L}_a + \alpha \mathcal{L}_s$。训练策略为先用$\mathcal{L}_s$单独预热UPP，再冻结/解冻联合优化，防止初期状态预测崩溃干扰动作学习。
+
+**3. 实验结果**
+- **数据集和baseline**: 
+  - 数据：多个人形机器人跨形态轨迹数据集（覆盖不同运动学/动力学/状态动作空间）。
+  - 真实平台：Tienkung 2.0 / Tienkung 3.0 全尺寸双足人形机器人。
+  - Baseline: ACT, SwitchVLA, GR00T N1.5, $\Pi_{0.5}$ 等主流VLA与模仿学习方法。
+- **评价指标**: 任务成功率、未见场景泛化率、快速反应/长程任务完成率、全身协调性与抗扰动能力。
+- **实验结果**: 在真实全身操控任务中取得SOTA。任务成功率全面优于对比方法；在快速调整姿态和长周期操作场景下提升尤为显著，验证了显式建模全身时序动态对协调控制的有效性。跨形态预训练使模型对未见场景和形态变化具备较强泛化力。消融实验确认历史缓存、MoE-UPP与门控融合均为性能提升的关键模块。
+
+---
+
+
+### 3. 🔥 [EgoVerse: An Egocentric Human Dataset for Robot Learning from Around the World] (EgoVerse：面向全球机器人学习的以自我为中心的人类数据集)
+- **研究机构**: `Georgia Tech, Stanford, ETH Zürich, UCSD, Meta, Scale AI 等跨国高校与工业界联合团队`
+- **Arxiv ID**: `2604.07607` | [点击跳转](https://arxiv.org/abs/2604.07607)
+
+**0. 论文标题**
+- **英文标题**: EgoVerse: An Egocentric Human Dataset for Robot Learning from Around the World
+- **中文标题**: EgoVerse：面向全球机器人学习的以自我为中心的人类数据集
+- **研究机构**: Georgia Tech, Stanford, ETH Zürich, UCSD, Meta, Scale AI 等跨国高校与工业界联合团队
+
+**1. 整体逻辑**
+- **研究任务**: 利用大规模人类第一人称演示数据，通过跨具身联合训练（Co-training）提升机器人操作策略的泛化能力。
+- **研究动机**: 机器人真机数据采集成本高、扩展慢；现有人类数据集多为静态发布、缺乏对机器人学习关键的标注（如3D手部位姿、场景元数据），且缺乏关于“人类数据规模与多样性如何影响机器人性能”的系统性、可复现结论。
+- **本质改动**: 放弃一次性数据集发布模式，构建可连续注入新数据的云平台生态（EgoDB + EgoVerse），并在算法侧建立标准化的人机动作对齐与联合训练流程；通过多实验室、多机器人平台的对照实验，摸清人类数据缩放与多样性的真实作用规律。
+- **技术溯源**: 基于多具身模仿学习范式（延续 Open X-Embodiment 等思路），视觉主干采用 ResNet-18，动作预测采用 Flow Matching 解码器，依赖跨具身特征对齐与分位数归一化技术。
+
+**2. 技术拆解**
+- **重点改进**: 1) 数据层：统一人类与机器人的数据格式，利用云平台 EgoDB 实现多源头数据的自动化清洗、对齐与版本管理；2) 算法层：设计跨具身对齐管线，将人类手部轨迹与机器人末端执行器动作统一映射到相机中心参考系，并使用分位数归一化（Quantile Normalization）消除人机本体感觉与动作分布的尺度差异。
+- **架构细节**: 编码器-解码器结构。视觉输入由 ResNet-18 提取特征，本体感觉由 MLP 编码，通过可学习 Query Attention 融合到共享语义空间。网络包含共享视觉主干（处理第一人称RGB）和独立分支（处理机器人腕部相机与本体状态）。解码器采用 Flow Matching 预测未来多步动作轨迹。动作输出维度自适应不同机器人构型（如 6-DoF 欧拉角/四元数+夹爪状态，或灵巧手关键点轨迹）。
+- **核心 Loss**: 以 Flow Matching 轨迹预测损失为主策略优化目标。人类演示数据与机器人演示数据在统一权重下联合训练（Co-training），无额外辅助任务，完全依赖高质量对齐动作标签进行监督。
+
+**3. 实验结果**
+- **数据集和baseline**: 数据集使用自研 EgoVerse（A部分含6个标准任务/学术标准采集，I部分含近2000个开放任务/工业野外采集，总计1362小时/8万集）。Baseline 为仅使用机器人自有数据训练的模仿学习策略。实验在3种不同构型机器人（双臂平行夹爪、类人肩臂、双7轴灵巧手）及多个独立实验室中同步执行。
+- **评价指标**: 核心指标为4个标准任务（object-in-container, cup-on-saucer, bag-grocery, fold-clothes）的真机 Rollout 成功率。同时通过控制变量实验评估人类数据总量、演示者数量、场景数量对策略泛化的边际收益。
+- **实验结果**: 
+  1. **共训练有效**：在统一协议下，引入人类数据联合训练稳定提升各机器人平台的任务成功率。
+  2. **缩放依赖对齐**：增加人类数据量并非无条件有效。仅当人类数据与机器人数据在任务语义和场景上下文上对齐时，性能才会随数据量上升；缺乏对齐时，单纯堆数据无收益。
+  3. **多样性分工明确**：演示者多样性主要提升策略对未见人类操作风格的鲁棒性；场景多样性在有限数据预算下对跨环境泛化起决定性作用。上述结论在三种机器人及不同实验室中保持高度一致。
+
+---
+
+
+### 4. 🔥 [Grasp as You Dream: Imitating Functional Grasping from Generated Human Demonstrations] (随想随抓：基于生成的人类演示模仿功能性抓取)
+- **研究机构**: `瑞典皇家理工学院 (KTH), 南方科技大学`
+- **Arxiv ID**: `2604.07517` | [点击跳转](https://arxiv.org/abs/2604.07517)
+
+**0. 论文标题**
+- **英文标题**: Grasp as You Dream: Imitating Functional Grasping from Generated Human Demonstrations
+- **中文标题**: 随想随抓：基于生成的人类演示模仿功能性抓取
+- **研究机构**: 瑞典皇家理工学院 (KTH), 南方科技大学
+
+**1. 整体逻辑**
+- **研究任务**: 开放世界下的零样本功能性抓取。输入单目RGB-D场景、自然语言任务指令、机器人末端URDF，输出符合任务功能意图的抓取轨迹/位姿。
+- **研究动机**: 现有功能性抓取方法要么依赖大规模仿真/真机数据收集，要么依赖对基础模型微调，成本高且泛化受限；同时多数方法只解决“抓哪个部位”，忽略了“怎么抓才利于后续操作”的功能性约束。
+- **本质改动**: 彻底抛弃数据采集与模型训练。直接调用预训练视频生成模型(VGM)“脑补”人类执行该任务的演示视频，从中提取3D手部运动轨迹，再通过几何优化与功能重定向直接映射到目标机器人手上，实现免训练抓取。
+- **技术溯源**: 纯推理+优化管线。基座依赖：现成视频生成模型(VGM，如Veo)、视觉语言模型(VLM)、Video-Depth-Anything (单目深度预测)、HaMeR/MANO (手部参数化网格)。无端到端训练。
+
+**2. 技术拆解**
+- **重点改进**: 提出“VGM演示生成 → 轨迹尺度/位姿优化 → 分类学指导的H2R重定向”三段式框架。核心是用人类视频作为通用中间表征，引入抓握分类学(Taxonomy)动态分配手指/关节权重，解决不同构型手（夹爪/多指灵巧手）的功能意图对齐问题。
+- **架构细节**: 
+  1. **生成与标定**: VLM解析出“任务-物体-部位”三元组，构建Prompt喂给VGM生成RGB序列。VDA预测深度后，用真实场景点云做Umeyama刚性标定，消除绝对尺度漂移。VLM对关键帧进行意图校验，闭环过滤幻觉。
+  2. **手部估计与优化**: HaMeR提取每帧初始MANO参数。针对生成视频尺度不准的问题，逐帧优化全局缩放因子与局部刚体变换，使MANO网格与观测点云/深度对齐。
+  3. **功能重定向**: VLM推理当前任务对应的抓握分类及人手-机器人手指映射关系。基于映射进行运动学优化，并在接触阶段交替微调关节角与腕部刚体位姿，确保功能接触点精准。使用SLSQP求解器逐帧求解。
+- **核心 Loss**: 
+  - 轨迹优化阶段：$\mathcal{L}_{\text{ICP}}$（MANO采样点云与观测点云的法向距离）+ $\mathcal{L}_{\text{rend}}$（渲染深度与VDA预测深度的L1差值，约束局部偏移）。
+  - 重定向阶段：$\mathcal{L}_{\text{vector}}$（带分类学权重的参考向量与机器人正向运动学向量匹配，如包裹抓握加重环绕手指权重，侧捏加重拇指食指权重）+ $\mathcal{L}_{\text{smooth}}$（关节时序平滑惩罚）。
+  - 接触微调阶段：$\mathcal{L}_{\text{contact}}$（机器人任务相关指尖到人类演示目标接触点的L2距离）。
+
+**3. 实验结果**
+- **数据集和baseline**: 
+  - 仿真：TaskGrasp（平行夹爪）、DexGraspNet子集（Shadow/Allegro灵巧手，手动补充任务标签）。
+  - 基线：免训练LAN-Grasp；训练型GraspGPT, FoundationGrasp, GraspMolmo（夹爪）；DexGYS, DexDiffuser（灵巧手）。
+  - 真机：Franka Panda + Robotiq 2F-85 / Allegro，测试10个日常/YCB物体，每物体10次重复。
+- **评价指标**: Top-1抓取成功率(Success)、目标部位识别准确率(PIA)、人类专家意图对齐评分(Intent, 1-5分)。真机直接统计成功次数/10。
+- **实验结果**: 
+  - **仿真**: TaskGrasp成功率78.6%(物体泛化)/79.5%(任务泛化)，Intent评分3.6/3.8，全面领先Baseline（成功率最高~77%，Intent最高3.5）。DexGraspNet成功率80%左右，大幅优于DexGYS(56%)和DexDiffuser(50-60%)，证明分类学加权有效避免了“只抓对部位但抓法错误”的问题。
+  - **真机**: 平行夹爪成功率76/100，灵巧手73/100。对精细接触/受力敏感物体（如耳机头梁）成功率下降，暴露生成位姿在物理交互微调上的局限。
+  - **扩展能力**: 生成轨迹可直接用于短程操作（成功率50%-80%）；仅用50条生成演示训练的Diffusion Policy在两项任务上达到73.3%-86.7%成功率。表明该管线既可零样本直接执行，也可作为低成本高质量数据源用于策略学习。
+
+---
+
+
+### 5. 🔥 [Event-Centric World Modeling with Memory-Augmented Retrieval for Embodied Decision-Making] (基于事件中心与记忆检索的具身决策世界模型)
+- **研究机构**: `作者独立研究（原文仅署名 Zhaowen Fan）`
+- **Arxiv ID**: `2604.07392` | [点击跳转](https://arxiv.org/abs/2604.07392)
+
+**0. 论文标题**
+- **英文标题**: Event-Centric World Modeling with Memory-Augmented Retrieval for Embodied Decision-Making
+- **中文标题**: 基于事件中心与记忆检索的具身决策世界模型
+- **研究机构**: 作者独立研究（原文仅署名 Zhaowen Fan）
+
+**1. 整体逻辑**
+- **研究任务**: 动态复杂环境下的无人机实时避障与导航决策。
+- **研究动机**: 端到端黑盒策略缺乏可解释性，且无法显式保证输出动作符合物理动力学约束。在安全攸关场景中，很难分析决策逻辑或验证动作是否越界。
+- **本质改动**: 放弃“感知直接映射动作”的端到端训练，改为“事件结构化抽象 -> 隐空间检索历史经验 -> 物理约束加权融合”的基于案例推理（CBR）架构。用显式检索和物理正则替代纯神经网络策略输出。
+- **技术溯源**: 未依赖大模型基座。底层组合了 DeepSets/Transformer（置换不变事件编码）、FAISS（近似最近邻检索）、虚拟势场法（专家数据生成）与经典控制理论（Lyapunov稳定性约束），并在 NVIDIA Isaac Sim 中闭环验证。
+
+**2. 技术拆解**
+- **重点改进**: 
+  1. 用“事件列表”解耦传感器输入，分离目标位置/运动学、环境状态、自身位姿与目标航向，统一编码为置换不变的隐向量。
+  2. 构建“知识库”存储历史（事件隐向量-动作-奖励）三元组，实时通过隐向量相似度召回 Top-K 历史动作。
+  3. 针对多模态模仿学习常见的“平均化碰撞”（左转和右转的均值变成直行），引入聚类贝叶斯选择机制，先按方向聚类，只在权重最高的类内做加权平均。
+- **架构细节**: 
+  - 输入输出：输入为当前时刻的结构化事件列表 $E_t$，输出为聚合后的控制指令 $a_t$。
+  - 结构：事件编码器 $f(\cdot)$ -> 知识库 ANN 检索 -> 相似度计算权重 $w_i$ -> 动作加权融合。决策延迟通过 FAISS 索引压至亚毫秒级。
+  - 规模：轻量化设计，无大参数网络，内存占用与知识库条目数 $|M|$ 和隐向量维度 $d$ 呈线性关系 $\mathcal{O}(|M|\cdot d)$。
+- **核心 Loss**: 
+  - **预训练阶段**: $\mathcal{L} = \lambda_m \mathcal{L}_{metric} + \lambda_i \mathcal{L}_{imitation}$。度量损失强制隐空间距离逼近真实物理运动的不可行性距离；模仿损失拟合专家轨迹。
+  - **在线微调阶段**: $\mathcal{L} = \lambda_p \mathcal{R}_{phys} - \lambda_r \mathcal{J}_{perf}$。物理一致性正则项惩罚违反动力学的检索权重，性能项通过策略梯度最大化期望奖励。
+  - **硬约束**: 强制隐状态转移矩阵满足谱半径 $\rho(\Psi)<1$ 和李雅普诺夫衰减条件 $V(z_{t+1})<V(z_t)$，保证长时程隐空间预测不发散。
+
+**3. 实验结果**
+- **数据集和baseline**: NVIDIA Isaac Sim 中由虚拟势场（VPF）监督生成的 27,075 条无碰撞专家轨迹；对比基线为传统 PPO 算法。
+- **评价指标**: 任务成功率、碰撞次数、轨迹步数（导航效率）、Loss 收敛稳定性、单步决策延迟。
+- **实验结果**: 
+  - **安全与成功率**: 在动态生成多机冲突/近失的对抗课程中，实现 100% 成功率、0 碰撞。
+  - **实时性**: 决策全流程 <1ms，完全满足无人机 20-50ms 的控制频率要求。
+  - **鲁棒性**: 训练 Loss 因对抗课程调度呈非单调波动，但任务表现始终稳定。说明框架优先保障决策安全边界，不盲目拟合 Loss；在空间分布偏移（随机目标生成）场景下，检索机制能直接复用知识库先验，冷启动和泛化表现优于依赖稀疏奖励的 PPO。
+
+---
+</script>
+            <script>
+                const rawMdElement = document.getElementById('raw-markdown');
+                if (rawMdElement) {
+                    document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent);
+                    // 渲染后触发公式排版
+                    if (window.MathJax && window.MathJax.typesetPromise) {
+                        window.MathJax.typesetPromise();
+                    }
+                }
+                function copySources() { /* 原代码保持不变 */ }
+            </script>
+        </body>
+        </html>
+        
