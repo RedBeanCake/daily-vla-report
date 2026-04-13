@@ -1,0 +1,207 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>🤖 具身大模型简报 - Mon, 13 Apr 2026 (VLA: 5 of 37 entries)</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <script>
+                window.MathJax = {
+                    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+                    options: { skipHtmlTags: ['script', 'style', 'textarea'] }
+                };
+            </script>
+            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+            <style>
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+            </style>
+        </head>
+        <body class="markdown-body">
+            <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
+            <h1>🤖 具身大模型简报 - Mon, 13 Apr 2026 (VLA: 5 of 37 entries)</h1>
+            <div id="content"></div>
+            
+            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [2D or 3D: Who Governs Salience in VLA Models? — Tri-Stage Token Pruning Framework with Modality Salience Awareness] (2D还是3D：谁主导VLA模型的显著性？——基于模态显著性感知的三阶段Token裁剪框架)
+- **研究机构**: `北京大学、中兴通讯、北京师范大学、中国地质大学（武汉）`
+- **Arxiv ID**: `2604.09244` | [点击跳转](https://arxiv.org/abs/2604.09244)
+
+**0. 论文标题**
+- **英文标题**: 2D or 3D: Who Governs Salience in VLA Models? — Tri-Stage Token Pruning Framework with Modality Salience Awareness
+- **中文标题**: 2D还是3D：谁主导VLA模型的显著性？——基于模态显著性感知的三阶段Token裁剪框架
+- **研究机构**: 北京大学、中兴通讯、北京师范大学、中国地质大学（武汉）
+
+**1. 整体逻辑**
+- **研究任务**: 多视觉模态（2D图像+3D点云）具身VLA模型的推理加速。
+- **研究动机**: 引入3D信息后，输入Token量翻倍，VLA推理频率被拖到3~5 Hz，达不到机械臂实时控制所需的20~30 Hz。现有Token裁剪方法是为单模态（仅2D）设计的，直接套用在2D+3D模型上会忽略两者在不同推理阶段的重要性差异，导致任务成功率断崖式下跌。
+- **本质改动**: 放弃“统一阈值裁剪”或“只看空间/语义”的静态策略。将VLA推理拆解为三个流水线阶段，分别量化2D和3D模态的实际贡献度（显著性），据此动态决定保留或丢弃哪类模态的哪些Token。
+- **技术溯源**: 基于主流MVLA架构（视觉编码器+LLM骨干+扩散策略动作头，如测试基座MLA）。属于推理期优化插件，不改动任何基座模型权重，纯前向计算时生效。
+
+**2. 技术拆解**
+- **重点改进**: 提出三阶段Token裁剪框架。核心是跟着数据流走，分阶段计算2D/3D显著性，自适应生成并融合裁剪候选集。
+- **架构细节**: 
+  - **输入/输出**: 输入原始2D/3D Patch序列与语言指令；输出为精简后的Token序列，直接喂给后续LLM。
+  - **阶段1（数据预处理期）**: 截取模型最后一层输出特征，计算各Patch的2D/3D特征L1范数比值。发现全局范围内2D模态贡献显著高于3D。据此设定双阈值，初筛出可裁剪候选Token。
+  - **阶段2（语义合成期）**: 利用注意力分数将Patch聚类为三类：背景、机械臂本体、目标物体。将3D注意力向量做正交分解，拆成与2D平行的部分（信息冗余）和正交部分（3D独有空间信息）。发现规律反转：在机械臂和目标物体区域，3D显著性反超2D。据此按语义类别分别配置2D/3D的裁剪比例。
+  - **阶段3（动作迭代期）**: 机械臂操作是连续过程，各区域重要性会随时间变化。通过时序分段和显著性趋势预测，在迭代步之间动态微调裁剪策略，防止在精细操作关键帧误删3D信息。
+- **核心 Loss**: 本文纯推理加速方案，无训练Loss与微调过程。仅增加在线计算开销（用于特征范数计算、注意力分解与阈值预测），实测仅占5.8%总推理时间。
+
+**3. 实验结果**
+- **数据集和baseline**: 仿真基准RLBench（5个长程操作任务）与真实机械臂环境。对比主流视觉大模型/VLA的Token裁剪基线（静态启发式裁剪与动态自适应裁剪方法）。
+- **评价指标**: 任务成功率（SR）、推理加速比（Speedup）、引入模块的额外时间开销。
+- **实验结果**: 相比最优基线，实现最高2.55倍推理加速；在成功率基本不降的前提下，将推理延迟压至可用范围；三阶段计算逻辑仅引入5.8%额外开销。消融实验直接证明：若不分模态、不分语义或取消时序动态调整，成功率会严重受损，验证了“按阶段区分2D/3D贡献”的必要性。
+
+---
+
+
+### 2. 🔥 [WOMBET: World Model-based Experience Transfer for Robust and Sample-efficient Reinforcement Learning] (WOMBET：基于世界模型的经验迁移，实现鲁棒且样本高效的强化学习)
+- **研究机构**: `UC Berkeley (Hybrid Robotics Lab)`
+- **Arxiv ID**: `2604.08958` | [点击跳转](https://arxiv.org/abs/2604.08958)
+
+**0. 论文标题**
+- **英文标题**: WOMBET: World Model-based Experience Transfer for Robust and Sample-efficient Reinforcement Learning
+- **中文标题**: WOMBET：基于世界模型的经验迁移，实现鲁棒且样本高效的强化学习
+- **研究机构**: UC Berkeley (Hybrid Robotics Lab)
+
+**1. 整体逻辑**
+- **研究任务**: 连续控制/机器人场景下的经验迁移（Offline-to-Online RL），即利用源任务收集的数据，加速目标任务策略的学习。
+- **研究动机**: 现实机器人交互成本高、风险大。现有离线到在线RL默认数据集是现成且固定的，不解决“高质量迁移数据如何生成”的问题；传统基于模型的RL（MBRL）能生成合成数据，但模型预测有偏差，直接用于迁移会导致分布偏移和Q值爆炸，策略容易崩溃。
+- **本质改动**: 将“数据生成”和“策略迁移”绑定成一个迭代闭环。不依赖外部固定数据集，而是先在源任务用带不确定性惩罚的世界模型生成轨迹，过滤掉高不确定性样本后，与目标任务在线数据混合进行微调。世界模型和策略网络交替更新，逐步扩大可靠规划区域。
+- **技术溯源**: 基于概率集成世界模型（PETS/MOPO范式）、Dyna式数据生成、SAC算法框架，并吸收了RLPD中通过LayerNorm和Q-min进行隐式正则化的工程技巧。
+
+**2. 技术拆解**
+- **重点改进**: 
+  1. 用不确定性惩罚改造MPC规划，并在生成后增加双阈值过滤（高累积回报 + 低认知不确定性），从源头保证合成数据质量。
+  2. 提出基于在线TD误差的自适应采样机制，动态调整离线/在线数据的混合比例。
+  3. 放弃显式的策略约束惩罚，改用架构隐式正则（LayerNorm限幅 + 集成Q取最小值）防止OOD样本的Q值外推爆炸。
+- **架构细节**: 
+  - 世界模型：采用 $E$ 个独立的概率网络预测下一状态分布和奖励，不确定性 $u(s,a)$ 取集成预测方差。MPC规划步长为 $H$，仅执行首步动作。
+  - 策略网络：标准Actor-Critic结构。离线数据集 $\mathcal{D}_S$ 生成后，奖励标签替换为目标任务奖励 $r_T$，与在线Buffer $\mathcal{D}_T$ 混合输入Critic。
+  - 规模：非大模型架构，属于中等参数量的经典RL网络，计算开销集中在多步MPC rollout和集成模型前向传播。
+- **核心 Loss**: 
+  - **Critic Loss**: 标准MSE。Target值为 $\mathcal{T}^\pi Q = r_T - \mathbb{I}_{(s \in \mathcal{D}_S)} \lambda u(s,a) + \gamma \min_i Q_{\bar{\phi}_i}(s', a')$。来自源数据的样本会减去不确定性惩罚项，抑制高方差区域的过估计。
+  - **Actor Loss**: $\mathcal{L}_{actor} = -\mathbb{E}[\min_i Q_{\phi_i}(s, \pi_\phi(s))]$，直接优化保守Q值（配合SAC的标准熵正则项）。
+  - **World Model Loss**: 使用 $\mathcal{D}_S \cup \mathcal{D}_T$ 更新集成网络的标准预测误差（MSE/负对数似然）。
+
+**3. 实验结果**
+- **数据集和baseline**: 使用标准连续控制基准环境（MuJoCo/DeepMind Control Suite）。对比方法包括：纯Online RL、纯Offline RL、主流Offline-to-Online基线（如CQL/IQL微调、MOPO、COMBO），以及移除过滤、固定混合比例等消融版本。
+- **评价指标**: 样本效率（累积回报随环境交互步数的学习曲线）和最终性能（训练稳定后的平均回报）。同时验证了数据分布偏移下的策略鲁棒性。
+- **实验结果**: 
+  - 相比Online RL，WOMBET在相同交互预算下收敛步数显著减少（样本效率提升）；相比Offline和现有迁移方法，最终策略回报更高且训练过程无崩溃。
+  - 消融实验表明：去掉双阈值过滤会导致合成数据引入偏差，去掉自适应采样会导致早期训练不稳定或后期适应缓慢。
+  - 理论侧给出了严格证明：不确定性惩罚目标确实是真实回报的下界；有限样本误差被明确分解为“分布失配误差”和“函数近似误差”，框架设计分别针对这两项进行了抑制。整体说明“自己生成可靠数据+自适应混合微调”比直接拿固定数据集微调更稳妥。
+
+---
+
+
+### 3. 🔥 [VAG: Dual-Stream Video-Action Generation for Embodied Data Synthesis] (VAG：用于具身数据合成的双流视频-动作生成模型)
+- **研究机构**: `GigaAI, 浙江大学, 北京大学, 中科院自动化所, MBZUAI`
+- **Arxiv ID**: `2604.09330` | [点击跳转](https://arxiv.org/abs/2604.09330)
+
+**0. 论文标题**
+- **英文标题**: VAG: Dual-Stream Video-Action Generation for Embodied Data Synthesis
+- **中文标题**: VAG：用于具身数据合成的双流视频-动作生成模型
+- **研究机构**: GigaAI, 浙江大学, 北京大学, 中科院自动化所, MBZUAI
+
+**1. 整体逻辑**
+- **研究任务**: 输入单张初始帧图像和文本指令，同步生成高质量且严格时空对齐的视频序列与机器人关节/末端动作轨迹。
+- **研究动机**: 具身策略训练依赖大量遥操作数据，采集成本高。现有世界模型只能生成视频缺乏配对动作；两阶段方案（先生视频再用逆动力学或视觉模型反推动作）存在模态错位和误差累积；现有 World-Action 模型多侧重于在线策略执行而非数据合成。需要一种统一、高效的生成范式直接产出可用于策略预训练的视频-动作对。
+- **本质改动**: 将视频生成与动作生成合并至统一的流匹配（Flow Matching）框架中，采用双流架构同步去噪。视频分支的中间隐变量经自适应3D池化压缩为全局条件，直接注入动作分支，消除两阶段流水线带来的对齐偏差与累积误差。
+- **技术溯源**: 视频分支权重初始化自 Cosmos-Predict2 (2B)；动作分支采用 Diffusion Policy 的 1D U-Net 架构；文本编码器为 T5-XXL；生成范式采用 Flow Matching。
+
+**2. 技术拆解**
+- **重点改进**: 
+  1. **双流同步去噪**：视频分支与动作分支在推理时共享相同的噪声调度与去噪步数（35步），保证生成过程的时序一致性。
+  2. **自适应3D池化桥接**：在每个去噪步，提取视频分支预测的干净隐变量 $\mathbf{z}_0$，沿时空维度做自适应3D平均池化，将高维特征压缩为 $1\times C''$ 的全局嵌入向量，作为动作分支的强条件信号。该操作无额外可学习参数，计算轻量且保留全局视觉上下文。
+- **架构细节**: 
+  - **输入/输出**：输入为首帧RGB图像+文本指令；输出为约10秒视频序列（93帧，480P，10Hz）及对应的 $T \times D$ 维动作轨迹（$D$ 依机器人自由度而定，实验为7/14/16维）。
+  - **视频分支**：基于 DiT，使用 VAE 进行时空压缩（4×8×8）。首帧与文本（T5编码后交叉注意力注入）作为前缀条件，预测去噪速度。
+  - **动作分支**：基于 1D U-Net，将池化后的视频全局嵌入与时间步拼接，直接对高斯噪声初始化的动作序列进行去噪。训练时视频分支的输出会 detach，防止动作分支梯度回传破坏视频先验。
+- **核心 Loss**: 双分支均采用流匹配标准 MSE Loss 分别拟合视频隐变量和动作序列的目标速度/残差。无额外辅助重建任务或对抗Loss，损失函数形式简洁：$\mathcal{L} = \|\mathbf{u}(\mathbf{x}_t, t, \mathbf{c}; \theta) - \mathbf{v}_t\|^2$。
+
+**3. 实验结果**
+- **数据集和baseline**: 
+  - 数据集：AgiBot（真实双臂，100万轨迹子集）、LIBERO（仿真单臂）、自采集真实双臂数据。
+  - Baseline：视频对比 SVD (1.5B), Wan2.2 (5B), Cosmos-Predict2；动作对比 两阶段方案（VAG生成视频后接 ResNet 或 AnyPos 反推动作）；下游策略对比开源 VLA $\pi_{0.5}$。
+- **评价指标**: 视频采用 FVD、FID、LPIPS、SSIM、PSNR；动作采用轨迹欧氏距离 (ED) 与成功率 (SR，单维误差<0.2判定为成功)；下游评估真实场景任务执行成功率。
+- **实验结果**: 
+  - 视频生成：VAG 在 AgiBot 数据集上 FVD 降至 965（优于 SVD 的1311和 Wan2.2的1152），LPIPS/SSIM/PSNR 均最优或持平，视频与指令对齐度高。
+  - 动作生成：显著优于两阶段方法。AgiBot 数据集上 ED 降至 0.81，SR 提升至 45%（ResNet 仅 8%，AnyPos 为 29%）；LIBERO 仿真集平均 SR 达 62%（对比 25%/54%）。生成的动作轨迹可直接在仿真和实机上回放执行，无累积发散。
+  - 下游策略增益：使用 VAG 生成数据预训练 VLA ($\pi_{0.5}$)，在仅 20 条真实数据微调后，实机抓取任务成功率从 35% 提升至 55%（绝对提升 20%），且在未见过的物体位置/颜色变化下泛化能力显著增强，未出现过拟合。
+
+---
+
+
+### 4. 🔥 [3D-VCD: Hallucination Mitigation in 3D-LLM Embodied Agents through Visual Contrastive Decoding] (3D-VCD：基于视觉对比解码的3D具身大模型幻觉缓解方法)
+- **研究机构**: `Virginia Tech, University of Illinois Urbana-Champaign`
+- **Arxiv ID**: `2604.08645` | [点击跳转](https://arxiv.org/abs/2604.08645)
+
+**0. 论文标题**
+- **英文标题**: 3D-VCD: Hallucination Mitigation in 3D-LLM Embodied Agents through Visual Contrastive Decoding
+- **中文标题**: 3D-VCD：基于视觉对比解码的3D具身大模型幻觉缓解方法
+- **研究机构**: Virginia Tech, University of Illinois Urbana-Champaign
+
+**1. 整体逻辑**
+- **研究任务**: 缓解3D具身智能体（基于3D-LLM）在环境理解、空间问答和任务规划时的幻觉问题（如确认场景中不存在的物体、误判空间关系或状态）。
+- **研究动机**: 3D-LLM在视觉证据弱、被遮挡或布局复杂时，极易依赖语言先验“瞎猜”，导致过度肯定（Over-affirmation）。现有推理期幻觉缓解方法主要针对2D图像（如像素模糊/遮挡），无法探测具身场景核心的3D几何、物体存在性和空间拓扑错误；而基于微调的方法泛化性差，无法覆盖开放世界的长尾场景。需要一种免训练、推理期生效、针对3D结构的干预手段。
+- **本质改动**: 将2D对比解码（VCD）迁移到3D结构化场景图层面。不再扰动像素，而是直接对场景图中的物体类别、3D坐标和包围盒尺寸进行可控扰动，构造“负样本”上下文。通过对比原始图与扰动图的输出分布，压灭那些不随3D证据变化的词元。
+- **技术溯源**: 基于LLaMA架构的因果解码器（如3D-LLM、Llama-3、Qwen），核心思想继承自2D VCD，但将扰动域从图像空间改为图结构空间，全程免训练。
+
+**2. 技术拆解**
+- **重点改进**: 设计图空间扰动算子 $\mathcal{D}$。针对连续几何基准（3D-POPE），替换物体语义标签，并对质心和尺寸添加小方差高斯噪声；针对离散关系基准（HEAL），直接复用其对抗性Prompt构造“任务-场景不一致”的负上下文。两种扰动均保留图结构的语法合法性。
+- **架构细节**: 输入为文本Query + 3D场景图（节点含类别、坐标/关系/状态）。推理时并行输入原始图 $\mathcal{G}$ 和扰动图 $\hat{\mathcal{G}}$，模型分别前向传播。采用Batched前向调用和KV Cache复用策略，仅对新生成Token计算注意力，避免重复计算历史状态。
+- **核心 Loss**: 本文为纯推理期干预，**无训练Loss/无需反向传播**。核心机制是解码期的Logits线性融合公式：$\mathbf{z}^{vcd} = (1+\alpha)\mathbf{z}^{o} - \alpha \mathbf{z}^{d}$。该操作直接干预Softmax前的分布，对原始和扰动上下文中概率均高且对3D变化不敏感的Token进行惩罚（默认 $\alpha=1.0$），从而在解码端过滤语言先验，不引入额外可训练参数。
+
+**3. 实验结果**
+- **数据集和baseline**: 3D-POPE（分Random/Popular/Adversarial三组）、HEAL幻觉探测集。对比方法包括微调过的3D-LLM、3D-VisTA、LEO，以及HEAL实验中的原生Llama-3-8B-Instruct和Qwen-14B-Instruct。
+- **评价指标**: 3D-POPE使用Precision、Recall、F1、Accuracy、Yes-rate（回答“Yes”的比例，越低说明盲目肯定倾向越弱）；HEAL使用CHAIR指标（$C_O$物体幻觉率、$C_S$状态幻觉率，衡量生成内容中幻觉实体的占比）。
+- **实验结果**: 3D-POPE全子集指标全面提升。以Random组为例，Precision从50.0%升至62.2%，Accuracy从50.1%升至68.0%，Recall稳定在92.9%不损失；Yes-rate从99.8%大幅压至75.1%，有效遏制了“逢问必Yes”的先验偏差。Popular和Adversarial组同样在Precision/F1上取得最高分。HEAL基准上物体和状态的CHAIR分数显著下降。方法在不同3D表征格式下均有效，单Query延迟从2.0s增至2.5s，开销可控，具备即插即用的工程可行性。
+
+---
+
+
+### 5. 🔥 [V-CAGE: Vision-Closed-Loop Agentic Generation Engine for Robotic Manipulation] (V-CAGE：面向机器人操作的视觉闭环智能体生成引擎)
+- **研究机构**: `University of Cambridge, Wuhan University, Shanghai Jiao Tong University`
+- **Arxiv ID**: `2604.09036` | [点击跳转](https://arxiv.org/abs/2604.09036)
+
+**0. 论文标题**
+- **英文标题**: V-CAGE: Vision-Closed-Loop Agentic Generation Engine for Robotic Manipulation
+- **中文标题**: V-CAGE：面向机器人操作的视觉闭环智能体生成引擎
+- **研究机构**: University of Cambridge, Wuhan University, Shanghai Jiao Tong University
+
+**1. 整体逻辑**
+- **研究任务**: 自动化生成语义连贯、物理可行且标注完整的高保真仿真数据集，用于训练长程机器人操作的VLA模型。
+- **研究动机**: 现有仿真数据生成多为“开环脚本式”，存在两个硬伤：1. 物体随机摆放易产生穿插、遮挡或目标不可达等几何冲突，缺乏任务语义规划；2. 缺乏执行后验证，长程任务中微小的物理偏差（如抓取滑脱）会引发错误累积，产生大量“静默失败”的无效轨迹。
+- **本质改动**: 将数据生成从“代码直接执行”改为“多模态大模型驱动的智能体闭环”。用图像修复（Inpainting）引导场景布局解决摆放冲突；用VLM作为视觉裁判对每一步执行结果进行逐帧验收，不合格直接丢弃；引入感知压缩算法解决海量视频存储问题。
+- **技术溯源**: 智能体编排：OpenClaw；物理仿真：SAPIEN；视觉组件：Grounding DINO（检测）、DINOv2（特征）、Gemini 3（闭环验证）、Nano Banana（图像修复）；下游策略训练基座：$\pi_{0.5}$ VLA。
+
+**2. 技术拆解**
+- **重点改进**: 
+  1. **场景构建（IGSC）**：LLM生成自然语言布局方案，Inpainting模型将其转为目标俯视图。通过视觉特征匹配反解3D坐标，再用带物理约束的优化算法微调，确保布局既符合任务逻辑又无碰撞。
+  2. **VLM闭环验证**：将轨迹生成改为拒绝采样。VLM对每个子任务执行后的截图进行语义核对，任何一步判定失败立即中止该次生成并重置场景，切断长程任务的误差传播链。
+- **架构细节**: 输入为自然语言指令与预设资产库（自带抓取点/功能点标注）。管线串行执行：LLM选物并初摆 -> LLM出布局描述 -> Inpainting生成目标图 -> DINOv2特征匹配与坐标反解 -> 约束优化消除碰撞 -> 调用代码模板生成子任务脚本 -> 物理引擎执行 -> VLM逐步骤验证 -> 动作感知视频压缩。最终输出清洗后的轨迹数据集（文中每个任务规模设定为100条）。
+- **核心 Loss**: 本文非端到端网络训练论文，核心为**场景位姿优化目标函数**：$\min \mathcal{J} = \lambda_c \cdot \text{碰撞惩罚} + \lambda_d \cdot \text{偏离Inpainting目标位置惩罚} + \lambda_b \cdot \text{工作区边界惩罚}$。容器类物体采用分层联合优化。数据清洗环节采用VLM输出的二元信号（0/1）进行硬阈值过滤，无辅助重建Loss。
+
+**3. 实验结果**
+- **数据集和baseline**: 自建4个长程复杂操作任务（自助结账、面包打包、文具收纳、抽屉分拣）。Baseline为$\pi_{0.5}$模型预训练权重直接推理（Zero-shot），实验组为使用本文生成的原始数据集微调，对比组为使用经高压缩比的数据集微调。
+- **评价指标**: 任务成功率（Success Rate），每个任务在100次随机场景初始化/光照/纹理下统计。
+- **实验结果**: 预训练基线成功率为0%。使用本文数据微调后，PackStationery达100%，AutoCheckout和PackBreads达54%，SortToCabinet为25%。性能瓶颈主要源于长程串联任务中基础抓取步骤的累积误差，而非任务逻辑错误。经压缩（文件体积减小>90%，视觉差异<0.1 JOD）的数据微调后成功率几乎无损（52%/50%/100%/28%），证明该管线生成的数据能有效驱动VLA策略学习，且压缩算法不损失策略所需的关键视觉高频细节。
+
+---
+</script>
+            <script>
+                const rawMdElement = document.getElementById('raw-markdown');
+                if (rawMdElement) {
+                    document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent);
+                    // 渲染后触发公式排版
+                    if (window.MathJax && window.MathJax.typesetPromise) {
+                        window.MathJax.typesetPromise();
+                    }
+                }
+                function copySources() { /* 原代码保持不变 */ }
+            </script>
+        </body>
+        </html>
+        
