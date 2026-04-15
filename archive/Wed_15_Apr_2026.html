@@ -1,0 +1,143 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>🤖 具身大模型简报 - Wed, 15 Apr 2026 (VLA: 3 of 48 entries)</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <script>
+                window.MathJax = {
+                    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+                    options: { skipHtmlTags: ['script', 'style', 'textarea'] }
+                };
+            </script>
+            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+            <style>
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+            </style>
+        </head>
+        <body class="markdown-body">
+            <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
+            <h1>🤖 具身大模型简报 - Wed, 15 Apr 2026 (VLA: 3 of 48 entries)</h1>
+            <div id="content"></div>
+            
+            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [HazardArena: Evaluating Semantic Safety in Vision–Language–Action Models] (HazardArena：评估视觉-语言-动作模型中的语义安全性)
+- **研究机构**: `复旦大学、上海期智研究院（Shanghai Innovation Institute）、香港城市大学`
+- **Arxiv ID**: `2604.12447` | [点击跳转](https://arxiv.org/abs/2604.12447)
+
+**0. 论文标题**
+- **英文标题**: HazardArena: Evaluating Semantic Safety in Vision–Language–Action Models
+- **中文标题**: HazardArena：评估视觉-语言-动作模型中的语义安全性
+- **研究机构**: 复旦大学、上海期智研究院（Shanghai Innovation Institute）、香港城市大学
+
+**1. 整体逻辑**
+- **研究任务**: 评估具身 VLA 模型在语义危险场景下的安全决策能力，并解决现有评测将“物理执行失败”误判为“语义安全拒绝”的缺陷。
+- **研究动机**: 现有 VLA 仅在安全数据上微调，策略学到的是机械复现轨迹，而非理解语义约束。能力越强，越容易把学到的动作模板生搬硬套到语义危险场景中（例如把“插充电宝”从插排换成炉灶）。传统指标只看最终成功率，受仿真物理噪声影响大，无法暴露模型在“差一步就危险”的真实意图。
+- **本质改动**: 1) 提出 Safe/Unsafe Twin（安全/危险孪生）评测范式，固定物理布局、动作模板与交互接口，仅替换物体的语义角色绑定，隔离能力变量；2) 用阶段过程指标（attempt/commit/success）替代单一终点指标；3) 提出免训练的推理期安全拦截层（SOL）进行语义 gating。
+- **技术溯源**: 评测与防御模块均适配主流开源 VLA 基座：OpenVLA-OFT、$\pi_0$、NORA、VLA-Adapter。
+
+**2. 技术拆解**
+- **重点改进**: 
+  1. **孪生场景构建**：按 ISO 13482 等标准提取 7 类现实风险（食品、财产、化学、隐私、火灾、人身、电气）。自动化流水线生成 2000+ 资产与 40 个任务。核心是保持底层动作程序不变，仅通过更换 actor/target 组合改变语义风险。
+  2. **阶段评估指标**：记录 `attempt`（末端执行器进入交互区）、`commit`（达到任务特定的不可逆临界构型）、`success`（环境判定完成）。`commit` 指标专门捕捉“物理上已走到危险边缘，但因抓取抖动/接触阈值未触发 success”的准危险行为。
+  3. **SOL 安全选项层**：推理期外挂模块，不更新策略权重。L1 层基于可审计的物体-属性规则库做硬性拦截；L2 层调用外部 VLM，对（当前观测+指令+规划动作）输出安全评分。在策略到达 `commit` 阈值前进行干预，违规则替换为 no-op/保持。
+- **架构细节**: 输入为标准 VLA 的多模态序列与文本指令，输出底层控制信号。SOL 作为并行拦截器运行，接收基座策略的当前动作提案 $a_t$，判断放行或替换。整个流程纯闭环仿真测试，基座策略参数量沿用各开源原版（如 7B/8B 级），SOL 仅为轻量规则/提示词调用，无额外可训练参数。
+- **核心 Loss**: **无新增训练 Loss**。基座策略训练沿用标准模仿学习 Loss（动作序列预测 Loss）。SOL 完全免训练，安全拦截基于规则匹配与 VLM 推理，不涉及梯度回传或策略微调。
+
+**3. 实验结果**
+- **数据集和baseline**: 数据集为自建的 HazardArena（含严格配对的 safe/unsafe 孪生集）。Baseline 为 OpenVLA-OFT、VLA-Adapter、NORA、$\pi_0$。所有模型仅在 safe twin 的 600 条演示轨迹上微调，unsafe twin 作为完全未见测试集。控制同一训练轨迹下的 Early 与 Final checkpoint 对比能力增长曲线。
+- **评价指标**: Safe 场景成功率 $SR_{safe}$，Unsafe 场景危险完成率 $SR_{unsafe}$，以及阶段指标 `attempt_rate` 和 `commit_rate`。评价核心：在 $SR_{safe}$ 相当的前提下，模型在 unsafe 场景是否主动抑制动作（低 `commit_rate`）。
+- **实验结果**: 
+  1. **能力放大危险**：随微调深入（Early $\to$ Final），$SR_{safe}$ 显著上升，但 $SR_{unsafe}$ 与 `commit_rate` 同步飙升。以 $\pi_0$ Final 为例，插插座任务 safe 成功率 47%，unsafe 危险率达 44%，commit 率在安全/危险场景几乎持平（0.78 vs 0.80）。证明“安全微调只提升了执行熟练度，未建立语义避险”。
+  2. **过程指标揭露真实风险**：unsafe 场景下 `commit_rate` 普遍远高于 `success_rate`。仅看 success 会严重低估隐患，多数 unsafe 失败是物理执行噪声导致，而非模型主动拒绝。
+  3. **SOL 拦截有效**：部署 SOL 后，unsafe 场景的 `commit_rate` 和危险成功率大幅压降，同时 safe 场景的任务成功率损失极小（通常仅下降个位百分点）。验证了免训练语义 gating 能在不破坏基座能力的前提下有效阻断危险执行。
+
+---
+
+
+### 2. 🔥 [Robotic Manipulation is Vision-to-Geometry Mapping ($f(v)\rightarrow G$): Vision-Geometry Backbones over Language and Video Models] (机器人操作是视觉到几何的映射：以视觉-几何骨干替代语言与视频模型)
+- **研究机构**: `中山大学、阿里巴巴（高德）、广东工业大学、X-Era AI Lab`
+- **Arxiv ID**: `2604.12908` | [点击跳转](https://arxiv.org/abs/2604.12908)
+
+**0. 论文标题**
+- **英文标题**: Robotic Manipulation is Vision-to-Geometry Mapping ($f(v)\rightarrow G$): Vision-Geometry Backbones over Language and Video Models
+- **中文标题**: 机器人操作是视觉到几何的映射：以视觉-几何骨干替代语言与视频模型
+- **研究机构**: 中山大学、阿里巴巴（高德）、广东工业大学、X-Era AI Lab
+
+**1. 整体逻辑**
+- **研究任务**: 机器人视觉到动作策略生成（Vision-to-Action）
+- **研究动机**: 当前主流VLA和视频预测模型依赖2D图文或像素时序预训练骨干，其表征偏向语义和2D纹理，缺乏对真实3D几何和空间关系的精确建模。强行接入3D信息（如深度图、点云或3D编码器）会导致“3D-2D-3D”的表征瓶颈，或增加硬件与融合成本。物理操作本质上是空间几何推理，而非语义模式匹配。
+- **本质改动**: 摒弃传统语言/视频骨干，直接替换为预训练的3D世界模型（VGGT），构建“多视角图像→原生3D空间表征→动作”的直连映射，切断2D先验对空间操作的干扰。
+- **技术溯源**: 骨干基于3D几何基础模型 VGGT；架构设计参考 OpenVLA-OFT（动作分块策略）和 World Action Models（联合训练范式）。
+
+**2. 技术拆解**
+- **重点改进**: 
+  1. **骨干替换**：直接用VGGT提供原生3D表征替代VLM骨干，从源头对齐操作所需的几何空间。
+  2. **渐进式体素调制(PVM)**：替代标准Cross-Attention。设计双层串行注意力机制（先聚合动作查询条件，再融合视觉语言流形条件），解决3D几何特征向动作解码器传递时的信息损耗。
+  3. **联合训练与解耦推理**：共享3D表征同时预测动作、相机内外参、深度图；训练时多任务监督强化几何一致性，推理时直接旁路几何辅助头，仅保留动作通路，兼顾精度与高频控制延迟。
+- **架构细节**: 
+  - **输入与编码**：多视角RGB经DINO切块编码，指令经Qwen-GTE编码，本体状态经MLP映射。拼接可学习Action Query后送入骨干。
+  - **骨干网络**：12层VGGT Transformer。偶数层执行单视角局部Attention，奇数层执行跨视角/跨模态全局Attention，输出统一3D特征序列。
+  - **解码网络**：动作头为12层回归Transformer，采用Action Chunking（一次性预测未来8步）。PVM模块嵌入解码器每一层，调制特征与更新后的解码状态拼接后传入下一层。相机头（MLP）和深度头（DPT）沿用VGGT原始结构。全程采用LoRA（rank=64）微调骨干。
+- **核心 Loss**: $\mathcal{L} = \mathcal{L}_{action} + \mathcal{L}_{camera} + \mathcal{L}_{depth}$。$\mathcal{L}_{action}$为动作轨迹回归Loss；$\mathcal{L}_{camera}$为相机参数的Huber Loss；$\mathcal{L}_{depth}$为带梯度正则项的不确定性加权深度Loss。联合优化强制表征维持3D一致性。
+
+**3. 实验结果**
+- **数据集和baseline**: LIBERO仿真基准（含Spatial/Object/Goal/Long四个子集）；真机部署（重点测试未见相机视角的OoD泛化）。Baseline涵盖 $\pi_{0.5}$、OpenVLA-OFT、GR00T-N1.6、SpatialVLA、GeoVLA等主流VLA及3D-VLA模型。
+- **评价指标**: 任务成功率（Success Rate）。
+- **实验结果**: LIBERO仿真平均成功率达 **98.1%**，全面超过 $\pi_{0.5}$ (96.9%)、GeoVLA (97.7%) 等模型。真机实验中，不依赖额外深度传感器，且对未训练过的相机视角具备稳定的零样本泛化能力，成功率持续优于 $\pi_{0.5}$。证明原生3D骨干在空间精细操作和跨视角鲁棒性上具备明确优势。
+
+---
+
+
+### 3. 🔥 [Learning Versatile Humanoid Manipulation with Touch Dreaming] (基于触觉“预想”的通用仿人机器人灵巧操作学习)
+- **研究机构**: `Carnegie Mellon University (CMU), UT Arlington, Bosch Center for AI`
+- **Arxiv ID**: `2604.13015` | [点击跳转](https://arxiv.org/abs/2604.13015)
+
+**0. 论文标题**
+- **英文标题**: Learning Versatile Humanoid Manipulation with Touch Dreaming
+- **中文标题**: 基于触觉“预想”的通用仿人机器人灵巧操作学习
+- **研究机构**: Carnegie Mellon University (CMU), UT Arlington, Bosch Center for AI
+
+**1. 整体逻辑**
+- **研究任务**: 真实场景下仿人机器人的全身移动与灵巧操作（重点解决强接触、高精度、长程任务）。
+- **研究动机**: 纯视觉/本体感知的行为克隆在频繁接触变化的任务中极易失稳，因为接触状态部分可观测且突变快。现有触觉学习方法多局限于固定基座机械臂，且严重依赖多阶段预训练、独立的世界模型模块或针对特定传感器的手动设计，无法直接嵌入单阶段全身控制策略。
+- **本质改动**: 提出“触觉预想（Touch Dreaming）”机制。在单阶段行为克隆框架内，将触觉与未来关节力作为辅助预测目标。策略在输出动作块的同时，必须并行预测未来的触觉隐特征与受力，以此正则化共享网络，迫使主干网络主动学习接触感知的潜在动态。
+- **技术溯源**: 策略主干为自研 Encoder-Decoder Transformer；视觉编码采用 ResNet；底层下肢执行器沿用 PPO+DAgger 的 RL 教师-学生范式；隐表征目标监督借鉴 JEPA 的 EMA（指数移动平均）教师网络机制。
+
+**2. 技术拆解**
+- **重点改进**: 
+  1. **系统闭环**：构建 RL 下肢控制器（LBC）与 VR 遥操作映射栈。遥操作时，LBC 自动接管下半身与躯干姿态稳定，操作者只需关注手部意图，解决全身协调难的问题。
+  2. **单阶段触觉正则化**：取消独立的触觉预训练或推理期世界模型。将“预测未来触觉/受力”直接作为策略训练的辅助头，仅用于更新主干权重，推理时直接丢弃，保持部署轻量。
+- **架构细节**:
+  - **输入**：头/腕多视角 RGB、全身/手部本体状态、关节力、分布式触觉阵列（单手 1062 维）。
+  - **模态编码**：各模态独立提取特征后，通过 Cross-Attention Slot 机制压缩为固定数量的 Token。
+  - **主干与解码**：标准 Transformer Encoder 融合 Token，Decoder 输出固定输出序列。分流给两类专家：动作专家（解码全身/手部动作块）、预想专家（解码未来关节力与触觉隐特征）。
+  - **运行频率**：策略 30Hz 输出动作块，底层 LBC、IK 和手部重定向 50Hz 执行。
+- **核心 Loss**:
+  - **主 Loss**：动作块的模仿学习损失（MSE），对齐遥操作记录的动作序列。
+  - **辅助 Loss（触觉预想）**：预测的未来关节力 / 预测的未来触觉隐特征 与 EMA 目标编码器生成的目标值之间的 MSE。EMA 编码器仅缓慢更新且梯度截断，提供稳定的隐空间监督信号，无原始数据重建损失。
+
+**3. 实验结果**
+- **数据集和baseline**: 使用自建 VR 遥操作真实数据集。对比基线为 ACT (Action Chunking Transformer)，消融对比了直接预测原始触觉信号的策略。
+- **评价指标**: 任务成功率（Success Rate），统计 5 个任务（Insert-T、书籍整理、毛巾折叠、猫砂铲取、倒茶）的平均成功率及相对基线提升幅度。
+- **实验结果**: 5 项强接触任务平均成功率较 ACT 基线相对提升 90.9%。消融实验显示，隐空间触觉预想比直接预测原始触觉阵列更有效，成功率相对再提升 30%。证明单阶段隐特征预想能有效提取接触动力学信息，且系统级稳控+数据收集闭环支撑了策略的实物部署。
+
+---
+</script>
+            <script>
+                const rawMdElement = document.getElementById('raw-markdown');
+                if (rawMdElement) {
+                    document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent);
+                    // 渲染后触发公式排版
+                    if (window.MathJax && window.MathJax.typesetPromise) {
+                        window.MathJax.typesetPromise();
+                    }
+                }
+                function copySources() { /* 原代码保持不变 */ }
+            </script>
+        </body>
+        </html>
+        
