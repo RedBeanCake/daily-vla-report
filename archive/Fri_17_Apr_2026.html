@@ -1,0 +1,158 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>🤖 具身大模型简报 - Fri, 17 Apr 2026 (VLA: 3 of 35 entries)</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <script>
+                window.MathJax = {
+                    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+                    options: { skipHtmlTags: ['script', 'style', 'textarea'] }
+                };
+            </script>
+            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+            <style>
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+            </style>
+        </head>
+        <body class="markdown-body">
+            <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
+            <h1>🤖 具身大模型简报 - Fri, 17 Apr 2026 (VLA: 3 of 35 entries)</h1>
+            <div id="content"></div>
+            
+            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [A Hierarchical Spatiotemporal Action Tokenizer for In-Context Imitation Learning in Robotics] (面向机器人上下文内模仿学习的层次化时空动作分词器)
+- **研究机构**: `Retrocausal, Inc.`
+- **Arxiv ID**: `2604.15215` | [点击跳转](https://arxiv.org/abs/2604.15215)
+
+**0. 论文标题**
+- **英文标题**: A Hierarchical Spatiotemporal Action Tokenizer for In-Context Imitation Learning in Robotics
+- **中文标题**: 面向机器人上下文内模仿学习的层次化时空动作分词器
+- **研究机构**: Retrocausal, Inc.
+
+**1. 整体逻辑**
+- **研究任务**: 上下文内模仿学习（ICIL）。在推理阶段提供一段专家演示（Prompt），结合当前观测（Query），不微调权重直接自回归预测机器人后续控制动作。
+- **研究动机**: 现有动作分词器多采用扁平向量量化，且训练时仅依赖“重建动作坐标”这一空间监督。这种做法难以维持动作轨迹的时间平滑性，也忽略了机器人动作天然具备的“子动作组合为完整动作”的层次结构。
+- **本质改动**: 将扁平聚类替换为**两级层次化向量量化**（细粒度子动作码本 -> 粗粒度完整动作码本），并在自监督预训练中**联合重建动作坐标与时间戳**，显式引入时间维度约束以增强表征平滑度。
+- **技术溯源**: 策略端基于 ICRT（自回归 Transformer 策略），视觉编码基于 ResNet-18（可选 CLIP 处理语言），分词器底层架构继承 VQ-VAE 与 LipVQ-VAE，平滑性约束沿用 Lipschitz 正则化技术。
+
+**2. 技术拆解**
+- **重点改进**: 
+  1. 层次化量化：底层码本捕捉短时运动基元，上层码本对底层表征进行二次聚类，形成长时连贯的动作原型。
+  2. 时空双路解码：动作解码负责还原位姿/关节角（空间监督），时间解码负责还原帧索引（时间监督），两者梯度回传共同约束隐空间。
+- **架构细节**: 
+  - 输入连续动作序列 $\mathbf{X}$，经 Encoder 和 Lipschitz 约束层得隐状态 $\mathbf{V}'$。
+  - **第一级量化**：$\mathbf{V}'$ 匹配底层码本 $\mathbf{Z}$（尺寸 $\alpha K$），得量化向量 $\mathbf{Q}^Z$，再经 Lipschitz 层平滑。
+  - **第二级量化**：平滑后的 $\mathbf{Q}^{Z'}$ 匹配顶层码本 $\mathbf{A}$（尺寸 $K$），得最终动作码本索引。
+  - 重建：$\mathbf{Q}^A$ 输入空间解码器（结构同 Encoder 对称）输出动作 $\mathbf{\hat{X}}$；$\mathbf{Q}^{Z'}$ 输入轻量时间解码器（2层 MLP）输出时间戳 $\mathbf{\hat{T}}$。
+  - 参数量配置：实验验证最优码本尺寸为底层 64、顶层 16。
+- **核心 Loss**: 
+  总损失由四部分加权构成：
+  1. **层次聚类损失**：两层量化各自的 Commitment Loss（隐状态靠近码本）与 Codebook Loss（码本靠近隐状态）。
+  2. **空间重建 Loss**：预测动作 $\mathbf{\hat{X}}$ 与真实动作 $\mathbf{X}$ 的 MSE。
+  3. **时间重建 Loss**：预测时间戳 $\mathbf{\hat{T}}$ 与真实时间 $\mathbf{T}$ 的 MSE（权重设为 0.02 最佳）。
+  4. **Lipschitz 正则化 Loss**：约束网络层权重，保证表征连续性。
+
+**3. 实验结果**
+- **数据集和baseline**: 
+  - 仿真环境：RoboCasa (MimicGen & Human 数据集)、ManiSkill。
+  - Baseline：ICRT+MLP/Bin/FAST/VQ-VAE/LFQ-VAE/LipVQ-VAE，以及独立策略 ACT、BC-Transformer、MCR。
+- **评价指标**: 任务成功率（Success Rate，环境自带定义）。
+- **实验结果**: 
+  - **RoboCasa**：平均成功率 59%，超越次优方法 LipVQ-VAE (53%) 6 个百分点，较基础 MLP 提升 14.8%。
+  - **ManiSkill**：平均成功率 67%，较 LipVQ-VAE (61.7%) 提升 5.3%。
+  - **跨域泛化**（MimicGen 训练 $\to$ Human 测试）：平均 62.5%，大幅领先第二名 10%，验证层次化时空表征具备强迁移性。
+  - **消融结论**：层次聚类贡献主增益（+4.3%），时空重建提供补充（+2.2%），两者组合效果最优；时间监督权重过大（>0.02）会损害主任务性能，需保持适度。
+
+---
+
+
+### 2. 🔥 [DockAnywhere: Data-Efficient Visuomotor Policy Learning for Mobile Manipulation via Novel Demonstration Generation] (DockAnywhere：面向移动操作的低成本演示生成框架)
+- **研究机构**: `南洋理工大学 (NTU), 北京邮电大学`
+- **Arxiv ID**: `2604.15023` | [点击跳转](https://arxiv.org/abs/2604.15023)
+
+**0. 论文标题**
+- **英文标题**: DockAnywhere: Data-Efficient Visuomotor Policy Learning for Mobile Manipulation via Novel Demonstration Generation
+- **中文标题**: DockAnywhere：面向移动操作的低成本演示生成框架
+- **研究机构**: 南洋理工大学 (NTU), 北京邮电大学
+
+**1. 整体逻辑**
+- **研究任务**: 移动操作场景下的视觉运动策略学习，核心解决机器人停靠点（Docking Point）偏移导致的策略失效问题。
+- **研究动机**: 实际部署中“导航到点+固定基座操作”是主流范式，但导航误差必然导致停靠点偏移。偏移会引发机器人第一人称视角剧烈变化，现有固定基座策略无法泛化。现有数据增强方法要么依赖昂贵的人工全场景采集，要么局限于2D图像编辑，无法处理真实的3D空间几何对齐，数据成本高且泛化有限。
+- **本质改动**: 提出一个纯合成、低开销的数据增强流水线。核心思路是“视角问题几何化”：改用第三人称固定视角作为策略输入，将视角变化直接降维为机器人底座位置变化。通过TAMP将轨迹解耦，仅重规划非接触的移动段、完整复用接触段，并在3D点云空间直接做刚体变换合成新观测，实现动作与视觉的严格空间对齐。
+- **技术溯源**: 策略学习基座为 **DP3** (Diffusion Policy 3)；数据生成受 DemoGen 启发，但抛弃2D扩散模型，改用 **TAMP规划器** + **3D点云空间编辑**；目标实例分割依赖 **Grounded SAM**。
+
+**2. 技术拆解**
+- **重点改进**:
+    1. **轨迹解析与TAMP重规划**：按末端执行器与目标的距离阈值，将单条演示切分为“移动段”（非接触、低精度）和“技能段”（接触、高精度）。生成新停靠点轨迹时，直接复用技能段保证物理交互一致性，仅调用运动规划器重新规划移动段以连接相邻技能段。夹爪开合信号全程直接复用。
+    2. **3D点云级观测合成**：放弃传统的2D图像生成/渲染管线。利用分割掩码提取机器人和物体的点云块，根据新旧停靠点的相对位姿计算刚性变换矩阵，直接对机器人臂点云和被操作物体点云进行坐标变换。变换后的点云拼接即为新视角观测，天然保证视觉与动作的几何一致性，彻底规避跨视角的对齐难题。
+- **架构细节**:
+    - **输入/输出**：输入为单相机RGB-D生成的3D点云（FPS下采样至1024/2048点）及机器人本体状态（末端位姿、夹爪状态）；输出为末端目标位姿（SE(3)）和夹爪二值控制信号。
+    - **策略网络**：采用 DP3 架构（基于扩散模型的条件动作预测），将点云和状态编码后迭代生成动作序列。
+    - **增强流程**：源演示 -> 点云分割与轨迹切分 -> 采样满足可见性/可达性/无碰撞约束的新停靠点 -> TAMP生成新动作序列 -> 3D点云刚体变换生成新观测 -> 组合成扩充数据集用于BC训练。单条轨迹增强耗时约0.1秒。
+- **核心 Loss**: 标准的行为克隆损失（Behavior Cloning Loss）：$\mathcal{L}_{BC} = -\frac{1}{|\hat{\mathcal{D}}|}\sum \log \pi(a_t | o_t, a_{t-1})$。**无视频重建、无对抗辅助Loss**。因为观测数据是确定性几何变换直接生成的，质量高且严格满足运动学约束，无需训练生成模型去拟合图像分布。
+
+**3. 实验结果**
+- **数据集和baseline**:
+    - **仿真**：ManiSkill 环境自定义的5项移动操作任务（抓取香蕉/马克杯、放置易拉罐、拉抽屉/开门）。对比基线包括原始 DP、DP3，以及固定基座增强方法 DP3+DemoGen。
+    - **真机**：搭载移动底盘的机械臂平台，仅依赖单一第三人称固定摄像头，无额外复杂传感器。
+- **评价指标**: 任务成功率（Success Rate, SR），重点考察在训练未见停靠点上的平均成功率及跨空间配置的泛化能力。
+- **实验结果**:
+    - **仿真表现**：在5个不同停靠点测试下，DockAnywhere 平均成功率达 **78.9%**，大幅超越 DP3 (17.8%) 和 DP3+DemoGen (74.2%)。在完全未见停靠点上策略仍能稳定执行。
+    - **消融分析**：增强数据量直接决定泛化上限。训练停靠点从1个增至4个时，平均SR从35.5%升至61.9%，增至6个后趋于饱和。说明该方法用极少的源演示即可快速逼近泛化极限。
+    - **真机验证**：仅用极少量源演示即可完成部署。在真实场景中人为制造平移/旋转停靠偏移，策略平均成功率达 **43.3%**，且能容忍超出训练分布的观测距离。验证了该框架在低算力消耗下具备直接上真机的工程可用性。
+
+---
+
+
+### 3. 🔥 [World–Value–Action Model: Implicit Planning for Vision–Language–Action Systems] (世界-价值-动作模型：视觉-语言-动作系统中的隐式规划)
+- **研究机构**: `西湖大学、南京大学苏州校区`
+- **Arxiv ID**: `2604.14732` | [点击跳转](https://arxiv.org/abs/2604.14732)
+
+**0. 论文标题**
+- **英文标题**: World–Value–Action Model: Implicit Planning for Vision–Language–Action Systems
+- **中文标题**: 世界-价值-动作模型：视觉-语言-动作系统中的隐式规划
+- **研究机构**: 西湖大学、南京大学苏州校区
+
+**1. 整体逻辑**
+- **研究任务**: 具身 VLA 模型的长视野轨迹推演与动作决策。
+- **研究动机**: 现有 VLA 多为单步直接动作预测，缺乏对长程轨迹的推演和后果评估。理论证明，在原始动作空间显式搜索时，受物理约束和场景语义限制，可行轨迹在轨迹空间中的占比会随规划步长增加呈指数级衰减（可行性诅咒），导致复杂任务极易发散或失败。
+- **本质改动**: 放弃动作空间显式优化，改为**潜在空间隐式规划**。通过联合学习世界模型和轨迹价值函数，在低维潜在空间中对轨迹分布进行迭代推断与重加权，逐步把概率质量集中到“物理可行且任务价值高”的轨迹上，最终直接解码出动作。
+- **技术溯源**: 视觉/策略骨干为 Diffusion Transformer (DiT)；文本理解用 T5-XXL；优化目标采用 Flow Matching（流匹配）；推理机制借鉴 MPPI 的分布迭代更新思想。
+
+**2. 技术拆解**
+- **重点改进**: **迭代潜在推断机制**。推理时不固定先验为纯高斯噪声，而是维护“视频潜在分布”和“价值潜在分布”两个高斯。每步采样 $M \times N$ 个候选未来片段，用价值模块计算信噪比（SNR）打分，选出 Top-$K$ 精英样本，直接用这些样本的均值和方差更新下一轮采样分布的 $\mu$ 和 $\sigma$。循环迭代 $K$ 次，分布自动收缩到高质量区域。
+- **架构细节**: 模型由三个 DiT 模块组成，输入均为当前多视角图像、指令文本和潜在噪声：
+  1) **视频生成模块**：自回归预测未来视觉片段特征，提供时空动态约束。
+  2) **轨迹价值模块**：初始化独立价值 Token，通过 Cross-Attention 聚合视频特征，输出整段轨迹的累积折扣回报。
+  3) **动作解码模块**：依次融合视频特征与价值特征，解码出可执行动作序列。
+  训练采用三阶段级联：先训视频 $\to$ 冻结视频训价值 $\to$ 三模块联合训动作。
+- **核心 Loss**: 全链路使用 **Flow Matching Loss**，无额外辅助任务。分三阶段对应：
+  - $\mathcal{L}_{\text{vid}}$：视频去噪流匹配（预测速度场）
+  - $\mathcal{L}_{\text{val}}$：价值流匹配（监督信号为规则密集奖励计算的累积折扣回报）
+  - $\mathcal{L}_{\text{act}}$：动作流匹配
+
+**3. 实验结果**
+- **数据集和baseline**: 仿真长视野操作基准与真实机械臂实验环境；对比当前主流 SOTA VLA 方法及结合世界模型的动作预测基线。
+- **评价指标**: 任务成功率（按单步/长程/组合任务拆分）、策略鲁棒性与跨场景泛化能力；消融实验评估迭代轮数 $K$、采样规模 $M,N$、平滑参数及精英选择阈值。
+- **实验结果**: WAV 在仿真与真机设置下均稳定超越基线。在长视野规划和多步组合任务上成功率提升显著，轨迹连贯性和抗干扰能力更强。消融验证了迭代推断和 SNR 筛选的必要性，且计算开销可通过调节采样量和迭代次数在性能与推理延迟之间做明确权衡，具备实际部署条件。
+
+---
+</script>
+            <script>
+                const rawMdElement = document.getElementById('raw-markdown');
+                if (rawMdElement) {
+                    document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent);
+                    // 渲染后触发公式排版
+                    if (window.MathJax && window.MathJax.typesetPromise) {
+                        window.MathJax.typesetPromise();
+                    }
+                }
+                function copySources() { /* 原代码保持不变 */ }
+            </script>
+        </body>
+        </html>
+        
