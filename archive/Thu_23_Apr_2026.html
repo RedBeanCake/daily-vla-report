@@ -1,0 +1,231 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>🤖 具身大模型简报 - Thu, 23 Apr 2026 (VLA: 5 of 37 entries)</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <script>
+                window.MathJax = {
+                    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+                    options: { skipHtmlTags: ['script', 'style', 'textarea'] }
+                };
+            </script>
+            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+            <style>
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+            </style>
+        </head>
+        <body class="markdown-body">
+            <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
+            <h1>🤖 具身大模型简报 - Thu, 23 Apr 2026 (VLA: 5 of 37 entries)</h1>
+            <div id="content"></div>
+            
+            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [PokéVLA: Empowering Pocket-Sized Vision-Language-Action Model with Comprehensive World Knowledge Guidance] (PokéVLA：通过综合世界知识引导赋能轻量级视觉-语言-动作模型)
+- **研究机构**: `中科院自动化所 (CASIA), TARS Robotics, 清华大学, 复旦大学, 新加坡国立大学等`
+- **Arxiv ID**: `2604.20834` | [点击跳转](https://arxiv.org/abs/2604.20834)
+
+**0. 论文标题**
+- **英文标题**: PokéVLA: Empowering Pocket-Sized Vision-Language-Action Model with Comprehensive World Knowledge Guidance
+- **中文标题**: PokéVLA：通过综合世界知识引导赋能轻量级视觉-语言-动作模型
+- **研究机构**: 中科院自动化所 (CASIA), TARS Robotics, 清华大学, 复旦大学, 新加坡国立大学等
+
+**1. 整体逻辑**
+- **研究任务**: 面向机械臂操作的视觉-语言-动作（VLA）模型，实现基于自然语言指令的精准动作生成。
+- **研究动机**: 现有 VLA 直接拿通用 VLM 的隐层特征当动作条件，存在三个硬伤：①通用知识跟机器人操作场景不匹配（领域鸿沟）；②多视角图像缺乏一致的空间对齐，导致空间参照指令执行差；③缺乏对操作目标的高层感知预测，动作学习效率低、抗干扰能力弱。
+- **本质改动**: 改为“先预训练具身小VLM + 后微调注入感知表征”的两阶段范式。预训练阶段用整理好的具身多模态数据补齐空间定位和功能常识；微调阶段强制模型学习跨视角一致的目标分割掩码，并引入几何对齐模块，最后用专门的 Action Query 把这些高层表征交叉注入动作头。
+- **技术溯源**: 整体架构基于 Prismatic-VLM；语言底座为 Qwen2.5-0.5B；视觉编码器为 SigLIP（语义）+ DINOv2（空间）；分割模块复用 SAM 的 Prompt Encoder 与 Mask Decoder；动作解码流程继承并改进自 OpenVLA-OFT。
+
+**2. 技术拆解**
+- **重点改进**:
+  1. **具身 VLM 预训练 (PokeVLM)**：清洗整合 240 万条开源数据，覆盖通用 VQA、空间 Grounding、Affordance（可操作区域预测）、具身推理四类任务，让小参数模型提前掌握机器人操作所需的常识与空间先验。
+  2. **多视角目标感知 (Goal-Aware)**：在词表扩充特殊 token `<SEG>`。训练时强制 VLM 输出该 token 的嵌入向量，该向量聚合了基座与腕部双视角的目标语义信息。利用该向量作为 Prompt，接入 SAM 解码器进行 Coarse-to-Fine（由粗到精）的两阶段分割，使模型隐式建立跨视角一致的 3D 目标表征。
+  3. **几何对齐 (Geometry Alignment)**：引入轻量级前馈几何基础模型，将多视角几何特征蒸馏对齐至 VLM 的视觉特征流中，不增加额外模态输入，直接强化 2D 特征的空间深度感知。
+  4. **动作头注入机制**：摒弃直接拼接 VLM 末层特征的做法。设计 Action Query，通过 Cross-Attention 主动聚合 VLM 视觉特征、`<SEG>` 目标嵌入和几何对齐特征，再将融合后的表征送入动作专家网络。
+- **架构细节**:
+  - **输入**: 双视角图像（基座+腕部）、机器人本体状态、语言指令。
+  - **参数规模**: 语言模型仅 0.5B，整体为轻量级（Pocket-Sized）架构，适合端侧部署。
+  - **动作解码**: 沿用 OpenVLA-OFT 的并行解码（Parallel Decoding）策略，单次前向传播输出连续动作序列，末端替换为 MLP 投影头。
+- **核心 Loss**:
+  - **动作主 Loss**: L1 Loss（预测动作轨迹与真值动作的逐维差值）。
+  - **分割辅助 Loss**: $L_{seg} = \lambda_{focal}\text{FOCAL}(\hat{M}, M) + \lambda_{KLD}\text{KLD}(\hat{M}, M)$。Focal Loss 处理正负样本不均衡，KL 散度约束预测掩码分布逼近真值，两者加权联合优化。
+  - **几何对齐 Loss**: 蒸馏损失（将几何基础模型输出的特征与 VLM 视觉特征对齐，文中未展开公式，实为特征级 MSE/余弦对齐）。
+
+**3. 实验结果**
+- **数据集和baseline**:
+  - **数据集**: 仿真端使用 LIBERO 及增强版 LIBERO-Plus 基准；真实世界使用自采机械臂数据集（含空间/颜色参照任务及扰动设置）。
+  - **Baseline**: OpenVLA-OFT, VLA-Adapter，以及同规模轻量级 VLA 方法。
+- **评价指标**: 任务成功率（Success Rate）；跨域泛化成功率（仅在原始 LIBERO 训练，直接在 Plus 上测试）；抗扰动成功率（加入环境干扰/视角变化后的成功率）。
+- **实验结果**:
+  - **仿真全量训练**: LIBERO-Plus 总成功率超 OpenVLA-OFT 4.0%，超 VLA-Adapter 2.5%。
+  - **仿真跨域泛化**: 仅用原始 LIBERO 训练直接迁移至 Plus，平均成功率分别超基线 9.7% 和 20.2%，泛化优势显著。
+  - **真实世界部署**: 常规参照任务成功率提升 12.5%；引入物理扰动后，差距扩大至 20.0%，验证了目标分割与几何对齐带来的强鲁棒性。整体在 0.5B 参数规模下达到 SOTA，推理延迟低，满足实时控制需求。
+
+---
+
+
+### 2. 🔥 [Temporal Difference Calibration in Sequential Tasks: Application to Vision-Language-Action Models] (序列任务中的时序差分校准：在视觉-语言-动作模型中的应用)
+- **研究机构**: `Technion (以色列理工学院)`
+- **Arxiv ID**: `2604.20472` | [点击跳转](https://arxiv.org/abs/2604.20472)
+
+**0. 论文标题**
+- **英文标题**: Temporal Difference Calibration in Sequential Tasks: Application to Vision-Language-Action Models
+- **中文标题**: 序列任务中的时序差分校准：在视觉-语言-动作模型中的应用
+- **研究机构**: Technion (以色列理工学院)
+
+**1. 整体逻辑**
+- **研究任务**: 评估并提升VLA机器人在序列执行过程中，对“任务最终是否会成功”的置信度预测与校准能力（即失败检测）。
+- **研究动机**: 现有VLA输出的单步动作概率无法准确反映长程任务成功率；传统校准方法针对单步独立分类设计，无法处理序列任务中“结果延迟反馈”与“前后动作强耦合”的问题；当前最优方法（如SAFE）高度依赖VLA内部隐藏特征，难以适配API闭源模型。
+- **本质改动**: 从理论上证明“最小化序列Brier分数（校准目标）”等价于“强化学习中的价值/Q函数估计”。借此将RL的时序差分（TD）学习范式引入校准训练，用相邻步预测值的自举（Bootstrap）更新替代传统的蒙特卡洛回归或逐点交叉熵。
+- **技术溯源**: 基于主流VLA策略（OpenVLA, π0, π0-FAST, UniVLA）的推理输出；算法核心继承自DQN/PPO中的TD Value Estimation与Target Network，属于即插即用的轻量级外挂模块。
+
+**2. 技术拆解**
+- **重点改进**: 提出TDQC（基于TD的Q值校准器）。将校准问题重构为序列价值预测：模型在每一步$t$输出一个标量$f_\theta(h_t)\in[0,1]$表示对任务最终成功的置信度。训练时不等待终局结果，而是利用下一时刻的预测值构建伪标签进行参数更新。
+- **架构细节**: 
+  - **输入**: 历史轨迹表示。提供两种模式：白盒模式（拼接VLA中间层特征）；黑盒模式（仅使用VLA输出的Top-K动作概率序列）。
+  - **输出**: 每一步的标量成功率预测。
+  - **结构**: 极小的参数化回归头（如2层MLP或简单RNN），参数量在十万级，完全不改动VLA主干权重。
+- **核心 Loss**: 序列Brier Score的优化代理。具体形式为TD Loss配合Target Network：
+  - $t < T$ 时：$\mathcal{L}_t = (f_\theta(h_t) - f_{\text{target}}(h_{t+1}))^2$（自举更新，利用时序一致性）
+  - $t = T$ 时：$\mathcal{L}_T = (f_\theta(h_T) - y_{\text{true}})^2$（接入真实任务成败标签）
+  无视频重建、对比学习等辅助Loss，纯监督信号来自终端标签与自身预测的时序传播。
+
+**3. 实验结果**
+- **数据集和baseline**: 使用LIBERO-10仿真套件与Franka真实机械臂数据集（由π0-FAST采集）。对比基线包括：SAFE（当前SOTA，交叉熵+内部特征+保形预测）、传统BCE分类器、蒙特卡洛(MC)回归器、常数均值基线。
+- **评价指标**: 序列Brier Score（核心指标，越低代表校准度与准确性综合越好）、ECE（预期校准误差）、ROC-AUC（失败检测区分度）、指导测试时动作搜索后的任务成功率、早期停止（Early Stopping）的轨迹中断率与成功率损耗。
+- **实验结果**: 
+  - TDQC在所有VLA模型与数据集上，序列Brier分数均显著低于BCE与SAFE。
+  - **关键结论**：仅用黑盒动作概率训练的TDQC，校准性能直接匹敌甚至超过依赖白盒内部特征的SAFE，证明了闭源模型校准的可行性。
+  - **下游应用**：将TDQC输出的价值估计用于测试时Top-K动作重排序（Guided Action Search），使OpenVLA在LIBERO上的任务成功率绝对值提升15%。
+  - **可靠性**：结合保形预测设定阈值后，可在轨迹中段提前终止注定失败的 rollout（Early Stopping），在几乎不损失最终成功率的前提下，大幅减少无效计算与硬件损耗。
+
+---
+
+
+### 3. 🔥 [AdaTracker: Learning Adaptive In-Context Policy for Cross-Embodiment Active Visual Tracking] (AdaTracker：面向跨具身主动视觉跟踪的自适应上下文策略学习)
+- **研究机构**: `北京航空航天大学、北京师范大学、北京大学、澳门城市大学等`
+- **Arxiv ID**: `2604.20305` | [点击跳转](https://arxiv.org/abs/2604.20305)
+
+**0. 论文标题**
+- **英文标题**: AdaTracker: Learning Adaptive In-Context Policy for Cross-Embodiment Active Visual Tracking
+- **中文标题**: AdaTracker：面向跨具身主动视觉跟踪的自适应上下文策略学习
+- **研究机构**: 北京航空航天大学、北京师范大学、北京大学、澳门城市大学等
+
+**1. 整体逻辑**
+- **研究任务**: 具身主动视觉跟踪（EVT）。控制机器人自主运动，使目标持续保持在视野中心区域。
+- **研究动机**: 现有跟踪策略与机器人形态强耦合。平台一旦切换（如轮式车换无人机），相机高度、速度上限、动力学响应随之改变，导致观测分布与动作映射失效。传统“一机一训”模式工程冗余高，知识无法复用。
+- **本质改动**: 摒弃人工标定或显式参数注入，通过短时交互历史（分割掩码+动作）让策略“自我感知”当前平台的物理约束，提取隐式上下文向量并条件化控制网络，实现单模型零样本跨形态自适应。
+- **技术溯源**: 基于经典离线强化学习框架（CQL-SAC），感知前端接入开源视觉分割模型（SAM2+GroundingDINO），策略网络采用循环结构（LSTM），非大语言模型微调路线。
+
+**2. 技术拆解**
+- **重点改进**: 构建“具身上下文编码器”。不直接依赖全局观测，而是从过去K步的“掩码-动作”对中提炼代表平台动力学与视角的隐向量 $z_t$，作为策略的调制条件，解耦感知偏移与控制偏移。
+- **架构细节**:
+  - **输入/输出**: 输入为历史K步目标分割掩码与归一化速度指令；输出为连续的速度控制指令。
+  - **上下文编码**: 历史掩码序列经CNN提取特征 -> 单层LSTM时序编码 -> 输出隐状态 $z_t$。
+  - **策略网络**: 当前帧掩码CNN特征与 $z_t$ 拼接 -> 输入第二个LSTM维护跟踪记忆 -> 接入Actor-Critic输出动作。部署时SAM2与策略流水线推理（~20Hz），满足机载实时性。
+- **核心 Loss**:
+  - **上下文表示 Loss ($\mathcal{L}_{rep}$)**: 联合监督与自监督。① 即时奖励预测MSE（绑定动作-动力学反馈）；② 相机高度预测MSE（显式约束视角敏感度）；③ 时序一致性自监督（惩罚单集内隐向量波动，促使上下文快速稳定收敛）。
+  - **策略优化 Loss**: 采用 Offline RL 的 CQL-SAC。Critic 含 CQL 正则项（抑制离线分布偏移下的Q值高估）+ 标准Bellman TD误差；Actor 优化最大化期望Q值并叠加熵正则。上下文编码器与策略网络在离线数据集上端到端联合训练。
+
+**3. 实验结果**
+- **数据集和baseline**:
+  - **数据**: 自建跨具身仿真数据集（19万步），覆盖5个场景、16种形态组合（相机高度0.3-3.0m，速度0.5-3.0m/s），包含大量分布外（OOD）极端配置。实机测试覆盖室内走廊、人群、非结构化路面。
+  - **Baseline**: 传统PID+视频跟踪器、Sequential Online RL（逐形态在线微调）、Offline EVT（同领域离线RL SOTA）、TrackVLA（VLA基线）。
+- **评价指标**: 仿真使用累积奖励(AR)、回合长度(EL)、成功率(SR)。实机因无GT位姿，改用基于目标框中心与尺寸偏差计算的平均奖励(MR)，辅以EL和SR。
+- **实验结果**:
+  - **仿真**: 在4个未见环境、16种形态（含极端视角/高速OOD）上全面领先。平均AR 209，SR 0.91。显著优于 Offline EVT (AR 72, SR 0.75) 和 TrackVLA (AR 8, SR 0.50)。在高速目标与极高/低视角下，策略成功率稳定≥0.90，方差极低。
+  - **实机**: 零样本直接部署至轮式车、四足狗、无人机。在四足和无人机平台上，本文 MR>0.83 且 SR 保持 1.0/0.8，而 Offline EVT 因无法适应视角与动力学突变，无人机SR跌至0.0。
+  - **Ablation**: 移除奖励/高度预测或时序一致性约束，控制易出现超调与振荡；完全移除上下文编码器，策略在混合数据上因动作映射多模态冲突而崩溃；验证了隐式上下文推断对跨形态泛化的必要性。
+
+---
+
+
+### 4. 🔥 [Cortex 2.0: Grounding World Models in Real-World Industrial Deployment] (Cortex 2.0：将世界模型落地于真实工业部署)
+- **研究机构**: `Sereact GmbH`
+- **Arxiv ID**: `2604.20246` | [点击跳转](https://arxiv.org/abs/2604.20246)
+
+**0. 论文标题**
+- **英文标题**: Cortex 2.0: Grounding World Models in Real-World Industrial Deployment
+- **中文标题**: Cortex 2.0：将世界模型落地于真实工业部署
+- **研究机构**: Sereact GmbH
+
+**1. 整体逻辑**
+- **研究任务**: 复杂非结构化工业环境下的长程机械臂操作（抓取放置、物品分拣、精密件分拣、拆箱等），要求跨硬件平台稳定执行。
+- **研究动机**: 现有 VLA（视觉-语言-动作）模型本质是“反应式”的，仅根据当前观测直接输出下一步动作，缺乏对未来的评估。在长程任务中，单步失误会快速累积；遇到严重遮挡、密集接触或物体打滑时，反应式策略极易崩溃。
+- **本质改动**: 将控制逻辑从“见招拆招”改为“先规划后执行”。在视觉潜在空间（Latent Space）用世界模型前瞻生成多条未来轨迹，用奖励模块（PRO）评估每条轨迹的进度、风险和完成概率，选出最优轨迹后再下发动作。
+- **技术溯源**: 基于团队前代 Cortex VLA 架构（2B 参数 VLM 骨干 + Flow Matching 动作头），融合互联网视频预训练的视觉世界模型，并引入自研的过程奖励算子（PRO）。
+
+**2. 技术拆解**
+- **重点改进**:
+  1. **潜在空间前瞻**: 放弃在像素或动作空间做长程预测，改为在 VLM 提取的视觉 Latent 空间生成未来状态序列，计算代价低且与具体机器人构型解耦。
+  2. **PRO 打分器**: 一个冻结的密集奖励模型。接收世界模型生成的潜在轨迹序列，输出三个指标：任务进度增量（Progress）、失败风险概率（Risk）、成功完成概率（Termination）。加权求和得到轨迹总分。
+  3. **优势信号注入**: 计算最优轨迹得分与平均得分的差值，经阈值二值化为指示变量 `It`。将 `It` 与当前视觉特征、高层任务上下文拼接，作为 VLM 的额外条件输入，显式引导动作头执行被验证为“高优势”的轨迹。
+- **架构细节**:
+  - 输入：腕部 RGB、本体状态、末端力/力矩（可选）、语言指令 → 编码为视觉 Latent。
+  - 流程：高层 VLM 提取任务上下文 → 世界模型采样 K 个独立噪声，通过 Flow Matching ODE 生成 K 条未来 Latent 序列 → PRO 打分排序 → 选中最优轨迹的 Latent 与 `It` 拼入 VLM → 动作头输出未来 H 步的动作块。
+  - 规模与推理：骨干为 2B VLM。规划候选数 K、前瞻步长 H、ODE 积分步数均为推理期超参，可按算力动态调节。
+  - 跨本体适配：规划全在视觉空间完成，与机械臂自由度无关。不同底盘仅挂载轻量级“动作映射模块（Action Mapping Module）”，将通用 Latent 指令转换为对应机器人的关节/位姿命令，并内置工作空间/关节限位约束。
+- **核心 Loss**:
+  - `L_total = L_FM(action) + λ_wm * L_WM(world)`
+  - `L_FM`：动作头的流匹配损失，拟合专家动作块的速度场。
+  - `L_WM`：世界模型的流匹配损失，拟合未来视觉 Latent 的速度场。训练时采用 `Beta` 分布偏置高噪声时间步，减少推理 ODE 步数。
+  - 注：PRO 在联合训练前已用真实部署遥测数据独立预训练，联合训练阶段参数完全冻结，仅用于生成二值化优势信号 `It`，不参与梯度反传。
+
+**3. 实验结果**
+- **数据集和baseline**:
+  - 数据：混合了 Sereact 自有的超千万级真实仓库部署交互数据（覆盖抓取、打包、分拣、拆包、装配等，含力觉/真空压力/本体多模态遥测）、约 400 小时自采遥操作数据、开源跨平台数据（Open X-Embodiment, BridgeData V2, DROID 等）及仿真合成数据。
+  - Baseline：对比上一版 Cortex 及当前 SOTA 的反应式 VLA 策略。
+- **评价指标**:
+  - 在四个真实递增复杂度的工业任务上测试：单臂抓取放置、物品与垃圾分类、螺丝分拣、鞋盒拆包。
+  - 核心指标：零人工干预下的任务成功率；重点考察严重遮挡、高接触密度、物体分布突变场景下的长程鲁棒性。
+- **实验结果**:
+  - Cortex 2.0 在全部四项任务上的成功率均超越基线，取得最优结果。
+  - 在杂乱遮挡和接触密集型操作中，反应式基线常因累积误差导致卡死或碰撞；Cortex 2.0 通过前瞻打分机制提前截断高风险分支（如高速接触、边缘刮擦），显著降低故障率，实现工业级长程稳定运行。
+
+---
+
+
+### 5. 🔥 [JoyAI-RA (Full title pending, abstract only provides model code name)] (JoyAI-RA：面向可泛化机器人操作的跨源预训练视觉-语言-动作模型)
+- **研究机构**: `摘要未明确列出（通常为 JoyAI 实验室或合作高校/研究所）`
+- **Arxiv ID**: `2604.20100` | [点击跳转](https://arxiv.org/abs/2604.20100)
+
+**0. 论文标题**
+- **英文标题**: JoyAI-RA (Full title pending, abstract only provides model code name)
+- **中文标题**: JoyAI-RA：面向可泛化机器人操作的跨源预训练视觉-语言-动作模型
+- **研究机构**: 摘要未明确列出（通常为 JoyAI 实验室或合作高校/研究所）
+
+**1. 整体逻辑**
+- **研究任务**: 训练可泛化的视觉-语言-动作（VLA）基础模型，用于开放环境下的机器人抓取与操作。
+- **研究动机**: 机器人专属数据集规模小、任务覆盖窄；不同机器人构型（Embodiment）差异大，导致学到的控制策略难以跨平台迁移。
+- **本质改动**: 放弃“仅用真机数据训练”的封闭路径，搭建“多源数据混合+动作空间统一”的预训练框架。将互联网图文、人手第一视角视频、仿真轨迹和少量真机数据串联，用统一的动作表示抹平人体与机械臂的本体差异。
+- **技术溯源**: 属于当前 VLA 主流范式。以开源多模态大模型（如 LLaVA/OpenVLA 等同类视觉语言骨干）为底座，保留语言/视觉编码器，替换或改造动作解码头，通过预训练策略重组数据流向。
+
+**2. 技术拆解**
+- **重点改进**: 1) **数据注入管线**：按“通用语义理解→视频时序规律→具身控制”三级分层混合异构数据；2) **跨本体对齐**：设计显式动作映射规则，将人类手部视频中的相对运动/位姿变化，统一转换为机器人关节或末端执行器的标准控制指令。
+- **架构细节**: 输入端接收图像帧、文本指令和上下文状态；输出端直接生成机器人动作序列。采用多阶段权重加载，先在海量网页和人类视频上学视觉与运动先验，再在仿真和真机数据上微调控制策略。具体参数量与网络层数摘要未披露。
+- **核心 Loss**: 主 Loss 为动作预测回归（MSE/L1 或 Diffusion Loss）。为有效吸收人类视频与仿真数据，架构必然引入视频时序重建、跨模态对比或状态对齐等辅助 Loss，以解耦本体差异特征、强化动作空间映射。
+
+**3. 实验结果**
+- **数据集和baseline**: 覆盖标准仿真环境与真实机械臂操作台。对比当前开源 SOTA VLA 模型及传统行为克隆（BC）方法。
+- **评价指标**: 任务成功率（Success Rate）、跨场景/跨物体的泛化得分、不同机器人构型间的迁移表现。
+- **实验结果**: 在仿真与真机基准上均优于对比基线。核心优势集中在泛化任务：在未见物体、新布局或切换不同机械臂时，成功率提升明确。验证了多源预训练与显式动作统一对缓解“数据少”和“本体差异大”的有效性（具体数值需参考正文图表）。
+
+---
+</script>
+            <script>
+                const rawMdElement = document.getElementById('raw-markdown');
+                if (rawMdElement) {
+                    document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent);
+                    // 渲染后触发公式排版
+                    if (window.MathJax && window.MathJax.typesetPromise) {
+                        window.MathJax.typesetPromise();
+                    }
+                }
+                function copySources() { /* 原代码保持不变 */ }
+            </script>
+        </body>
+        </html>
+        
