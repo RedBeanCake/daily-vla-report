@@ -1,0 +1,141 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>🤖 具身大模型简报 - Mon, 27 Apr 2026 (VLA: 3 of 30 entries)</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <script>
+                window.MathJax = {
+                    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+                    options: { skipHtmlTags: ['script', 'style', 'textarea'] }
+                };
+            </script>
+            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+            <style>
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+            </style>
+        </head>
+        <body class="markdown-body">
+            <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
+            <h1>🤖 具身大模型简报 - Mon, 27 Apr 2026 (VLA: 3 of 30 entries)</h1>
+            <div id="content"></div>
+            
+            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [GazeVLA: Learning Human Intention for Robotic Manipulation] (GazeVLA：学习人类意图用于机器人操控)
+- **研究机构**: `上海交通大学、东方理工大学（宁波）、北京大学、上海科技大学`
+- **Arxiv ID**: `2604.22615` | [点击跳转](https://arxiv.org/abs/2604.22615)
+
+**0. 论文标题**
+- **英文标题**: GazeVLA: Learning Human Intention for Robotic Manipulation
+- **中文标题**: GazeVLA：学习人类意图用于机器人操控
+- **研究机构**: 上海交通大学、东方理工大学（宁波）、北京大学、上海科技大学
+
+**1. 整体逻辑**
+- **研究任务**: 利用大规模人类第一人称视频数据训练机器人操控模型，解决机器人示教数据稀缺的问题，并实现跨具身（人到机器人）的知识迁移。
+- **研究动机**: 现有VLA严重依赖昂贵的机器人数据。引入人类视频虽能降低成本，但人机形态差异大（具身gap），且当前方法只模仿“人怎么做”（轨迹/动作），忽略了“为什么做”（决策动机），导致模型泛化差、细粒度操作易失败。
+- **本质改动**: 将“人类视线（Gaze）”显式建模为“意图”中间表征，构建“先预测视线落点，再基于视线生成动作”的串行推理链。用意图作为中间桥梁，抹平人机行为差异。
+- **技术溯源**: 视觉语言基座为 PaliGemma (SigLIP视觉编码器 + Gemma-2B)；动作生成采用条件流匹配（Conditional Flow Matching）；推理范式借鉴了CoT（思维链）。
+
+**2. 技术拆解**
+- **重点改进**: 在VLA架构中强制插入意图预测模块。模型必须先输出视线坐标，才能生成动作。预训练阶段从13个开源人类数据集中清洗对齐出1.5亿帧数据，学习意图与动作的协同；后训练阶段按1:1比例混合少量机器人数据（不含视线标注）与人类数据，实现意图知识向机器人执行端的无监督迁移。
+- **架构细节**: 输入为第一人称图像+语言指令+当前状态。PaliGemma负责多模态编码与自回归解码，将连续视线坐标通过空间分箱离散化为Token。解码生成的KV Cache直接作为Condition传入并行的Action Expert，Expert通过条件流匹配生成连续的高频动作序列（固定Horizon步长）。训练采用两阶段策略：先冻结VLM只训练Action Expert稳定表征，后全量微调；同时加入图像与视线的同步数据增强，缓解人类中心视角与机器人固定机位的分布差异。
+- **核心 Loss**: 双目标加权求和。意图部分为标准自回归交叉熵（Next-token prediction）；动作为条件流匹配MSE Loss。权重固定为 `λ_intent=0.1, λ_action=1`。推理时严格按顺序执行，切断意图分支则动作性能下降，验证了因果依赖的有效性。
+
+**3. 实验结果**
+- **数据集和baseline**: 预训练使用超1.5亿帧人类第一人称视频。评测覆盖AV-ALOHA仿真环境、双臂ALOHA实机、Unitree G1灵巧手实机。对比基线包括LFA(ACT)、DP(扩散策略)、H-RDT、π0.5。任务涵盖简单抓取、精细操作（拧螺丝）、长程任务（键盘打字）及分布外场景（干扰物/光照变化）。
+- **评价指标**: 主要使用任务成功率（%）。重点考察分布内(ID)、分布外(OOD)泛化能力，以及少样本微调下的任务完成精度。
+- **实验结果**: 全面优于基线。仿真OOD测试中，相比最强基线π0.5相对提升22%；实机少样本设置下，简单抓取成功率达85%，精细操作（如拧螺丝）成功率是π0.5的两倍；在长程打字和灵巧手放置任务中，意图引导有效抑制了背景干扰与误差累积，稳定性和成功率显著更高。消融实验确认：视线意图能有效迁移至机器人，且“先意图后动作”的顺序不可替换。
+
+---
+
+
+### 2. 🔥 [CodeGraphVLP: Code-as-Planner Meets Semantic-Graph State for Non-Markovian Vision-Language-Action Models] (CodeGraphVLP：结合代码规划器与语义图状态的非马尔可夫视动语言模型)
+- **研究机构**: `University of Arkansas (主导), Max Planck Research School, Google Research, TU Wien 等`
+- **Arxiv ID**: `2604.22238` | [点击跳转](https://arxiv.org/abs/2604.22238)
+
+**0. 论文标题**
+- **英文标题**: CodeGraphVLP: Code-as-Planner Meets Semantic-Graph State for Non-Markovian Vision-Language-Action Models
+- **中文标题**: CodeGraphVLP：结合代码规划器与语义图状态的非马尔可夫视动语言模型
+- **研究机构**: University of Arkansas (主导), Max Planck Research School, Google Research, TU Wien 等
+
+**1. 整体逻辑**
+- **研究任务**: 非马尔可夫长程机械臂操作。重点解决任务过程中关键物体被遮挡、初始/终止状态视觉相似、以及桌面背景杂物干扰导致的策略失效问题。
+- **研究动机**: 现有 VLA 默认“当前观测足够决策”（马尔可夫假设），长任务必然出错。现有两条路都有硬伤：1）加记忆的 VLA 用非结构化历史堆叠，算力随长度爆炸且容易漏掉稀疏关键帧；2）VLM 在线分层规划（VLM-in-the-loop）延迟太高，且纯语言子任务指令在杂乱场景下会让下游 VLA 视觉定位乱套。核心痛点是缺一个轻量、显式、能跨时间步持久化的任务状态。
+- **本质改动**: 把“重型 VLM 在线反复规划”换成“一次性生成可执行代码 + 持久化语义图”。用图结构显式记录物体和关系，代码规划器直接查图判断进度、输出当前子任务和关键物体列表。拿到关键物体后，把画面里无关的杂物全部掩掉，再把“干净”的画面喂给 VLA 执行。
+- **技术溯源**: 底层拼了 YOLOE（实例分割）、CLIP（跨视角语义匹配）、Cutie（视频跟踪/图节点在线更新）；规划层靠 LLM 一次性生成 Python 脚本；执行层基于标准 VLA 架构做模仿学习微调。
+
+**2. 技术拆解**
+- **重点改进**: 
+  1. **语义图构建与更新**: 初始阶段用 YOLOE 分割 + VLM 筛选任务相关物体 + CLIP/几何距离做多视角对齐，构建节点（物体/属性/掩码）和边（in/on/near 关系）。运行时用 Cutie 跟踪掩码，新出现的物体过一遍过滤流程后再入图，保证图只保留关键信息。
+  2. **代码即规划器**: 部署前用 LLM 结合图结构 API 和任务描述生成一段 Python 代码。代码内含基础图查询函数、布尔进度判断（如 `holding`, `in_container`）和一个轻量 `task_memory` 列表。运行时反复执行这段代码查图，判断当前子任务是否完成，完成则写入内存并跳转下一步。彻底免去每次决策都调大模型。
+  3. **去杂物提示 (Clutter-Free Prompting)**: 代码规划器输出 `(当前子任务指令, 关键物体ID)`。利用图中的分割掩码，把关键物体以外的像素全涂黑，拼成多视角“干净图像”，替换原始 RGB 输入给 VLA。
+- **架构细节**:
+  - **输入输出**: 初始输入多视角 RGB + 长程自然语言指令 → 产出语义图。循环阶段：输入当前图 → 代码规划器 → 输出子任务指令与关键物体 → 掩码生成器 → VLA → 输出未来 K 步动作块。
+  - **模型规模**: 核心逻辑不改动 VLA 参数量。感知管线均为轻量开源模型；规划脚本为纯 Python 逻辑，推理耗时可忽略。
+- **核心 Loss**: 纯模仿学习最大似然估计。训练数据直接用上述管线离线处理：把原始轨迹的每一步都转换成 `(去杂物图像, 本体感知, 动作块, 子任务指令)` 四元组，直接优化动作生成的对数似然。没有加视频重建、对比学习等辅助 Loss。
+
+**3. 实验结果**
+- **数据集和baseline**: 自采 3 个真实桌面任务（重复取放、遮挡堆叠、双杯交换），均含强历史依赖和背景杂物。Baseline 涵盖：原生短视野 VLA、引入历史/检索的记忆增强 VLA、以及 VLM 在线循环规划的分层架构。
+- **评价指标**: 任务最终成功率（%），单次规划/推理延迟（验证是否满足闭环实时性）。
+- **实验结果**: CodeGraphVLP 在全部 3 个任务上的成功率均稳定高于所有基线（含带记忆和历史依赖的变体）。相比 VLM-in-the-loop 方案，规划延迟大幅下降，因为重型 VLM 调用被替换成了轻量图查询+代码执行。消融实验证实，语义图过滤杂物、代码维护进度、子任务级语言提示三者叠加，缺一不可。整体方案在保持 VLA 执行能力的同时，把长程规划的算力和脆弱性问题通过“结构化状态+代码查表+视觉降噪”的方式解掉了。
+
+---
+
+
+### 3. 🔥 [dWorldEval: Scalable Robotic Policy Evaluation via Discrete Diffusion World Model] (dWorldEval：基于离散扩散世界模型的可扩展机器人策略评估)
+- **研究机构**: `Current Robotics, University of Toronto`
+- **Arxiv ID**: `2604.22152` | [点击跳转](https://arxiv.org/abs/2604.22152)
+
+**0. 论文标题**
+- **英文标题**: dWorldEval: Scalable Robotic Policy Evaluation via Discrete Diffusion World Model
+- **中文标题**: dWorldEval：基于离散扩散世界模型的可扩展机器人策略评估
+- **研究机构**: Current Robotics, University of Toronto
+
+**1. 整体逻辑**
+- **研究任务**: 机器人策略评估。用生成式世界模型替代真实环境或重型物理仿真器，通过“想象”策略的长期执行轨迹来打分和排序。
+- **研究动机**: 现有基于视频扩散的世界模型做策略评估不可靠。核心瓶颈在架构：它们通常将动作作为辅助条件（Cross-Attention/AdaLN）注入视觉去噪器，强视觉先验会覆盖动作信号。面对分布外（OOD）或错误动作时，模型倾向于“脑补”成功结果，无法反映真实失败；同时长程生成存在严重的时空漂移和物体形变。
+- **本质改动**: 放弃预训练视频生成架构，改用**离散扩散模型**从头训练；将视觉、语言、动作全部编码为**等价的Token**并入同一序列，通过Self-Attention平等建模；引入**稀疏关键帧记忆**抑制长程漂移；联合生成未来画面与**离散进度Token**，实现无外部奖励的自动成功判定。
+- **技术溯源**: 基于 Masked Discrete Diffusion (MDD) 框架；视觉Tokenizer采用 MAGVIT-v2，语言采用 LLaDA，连续动作块采用 FAST 离散化器。
+
+**2. 技术拆解**
+- **重点改进**:
+  1. **统一Token序列替代条件注入**：动作不再作为弱引导条件，而是与观测、指令拼成扁平Token序列。视觉Token通过Self-Attention直接感知动作Token，确保生成画面严格跟随输入控制信号（错即错，不脑补成功）。
+  2. **稀疏关键帧记忆（Sparse Keyframe Memory）**：滑动窗口采样最近 $K=4$ 帧低分辨率全局图，并拼接绝对帧序号（转为文本Token）。提供稳定的时空锚点，阻断累积误差。
+  3. **进度Token联合生成**：利用VLM生成带监督的进度标签并离散化（如"0.0", "0.5", "1.0"），与未来观测Token一起参与扩散过程。推理时进度达到1即自动判定任务成功。
+- **架构细节**:
+  - **输入/输出**：输入包含当前多视角全分辨率图(256×256)、历史低分关键帧(128×128)、语言指令、未来动作Chunk(长度2~8)。展平为单序列后送入Transformer。输出为 $\Delta$ 步后的未来多视角图像及进度Token。
+  - **模型结构**：纯Transformer自注意力去噪网络，无跨模态适配器。推理采用16步并行解码（Iterative Parallel Decoding）加速生成。
+- **核心 Loss**: 单一掩码离散扩散重建目标。对目标序列中随机掩码的位置计算交叉熵重建损失。加入模态权重平衡：进度Token权重 $w=2$，视觉Token权重 $w=1$。无独立的辅助任务或额外判别器，视觉预测与进度评估共享同一去噪过程。
+
+**3. 实验结果**
+- **数据集和baseline**: 
+  - 数据集：LIBERO（仿真）、RoboTwin（仿真）、真实双手机器人数据。训练集均刻意掺入次优/失败轨迹以增强对OOD动作的鲁棒性。
+  - Baseline：WorldEval、WorldGym、Ctrl-World（均为视频扩散架构，动作作条件注入）。
+- **评价指标**:
+  1. **动作可控性**：新提 $\Delta$-LPIPS。计算预测帧差与真实帧差的感知距离，衡量模型是否真实还原了动作引起的状态变化。
+  2. **时空一致性**：往返轨迹LPIPS。正向执行 $H$ 步动作后接反向 $H$ 步，比较终点与起点的图像差异。
+  3. **策略评估可靠性**：预测成功率与真实执行成功率的皮尔逊相关系数($r$)，以及策略排名违反率(MMRV)。
+- **实验结果**:
+  - **可控性**：Baseline在失败数据上 $\Delta$-LPIPS 剧烈恶化（WorldGym 升至 0.650），本文保持 0.352。随机打乱动作输入会导致指标显著下降，验证了模型强依赖动作而非依赖视觉先验脑补。
+  - **一致性**：无记忆版长程往返LPIPS随步数累积至 0.411；加入关键帧记忆后降至 0.243，有效抑制漂移。Baseline因不跟动作导致漂移误差更大。
+  - **评估代理效果**：在LIBERO多视角、RoboTwin异构策略、真实机器人任务上，本模型预测成功率与真实成功率的 $r$ 均稳定在 **0.91~0.93**，MMRV 仅 0.013。进度Token能准确捕捉策略性能的非单调波动，证明该世界模型可作为高保真、低成本的大规模策略评估代理。
+
+---
+</script>
+            <script>
+                const rawMdElement = document.getElementById('raw-markdown');
+                if (rawMdElement) {
+                    document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent);
+                    // 渲染后触发公式排版
+                    if (window.MathJax && window.MathJax.typesetPromise) {
+                        window.MathJax.typesetPromise();
+                    }
+                }
+                function copySources() { /* 原代码保持不变 */ }
+            </script>
+        </body>
+        </html>
+        
