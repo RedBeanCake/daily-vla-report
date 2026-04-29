@@ -1,0 +1,120 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>🤖 具身大模型简报 - Wed, 29 Apr 2026 (VLA: 2 of 34 entries)</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <script>
+                window.MathJax = {
+                    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+                    options: { skipHtmlTags: ['script', 'style', 'textarea'] }
+                };
+            </script>
+            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+            <style>
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+            </style>
+        </head>
+        <body class="markdown-body">
+            <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
+            <h1>🤖 具身大模型简报 - Wed, 29 Apr 2026 (VLA: 2 of 34 entries)</h1>
+            <div id="content"></div>
+            
+            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [Privileged Foresight Distillation: Zero-Cost Future Correction for World Action Models] (特权预见蒸馏：面向世界动作模型的零成本未来校正方法)
+- **研究机构**: `南安普顿大学 (The University of Southampton), 昆士兰大学 (The University of Queensland)`
+- **Arxiv ID**: `2604.25859` | [点击跳转](https://arxiv.org/abs/2604.25859)
+
+**0. 论文标题**
+- **英文标题**: Privileged Foresight Distillation: Zero-Cost Future Correction for World Action Models
+- **中文标题**: 特权预见蒸馏：面向世界动作模型的零成本未来校正方法
+- **研究机构**: 南安普顿大学 (The University of Southampton), 昆士兰大学 (The University of Queensland)
+
+**1. 整体逻辑**
+- **研究任务**: 提升世界动作模型（World Action Models）在单目/当前帧输入下的机器人策略动作预测精度，同时严格保持零未来视频生成的推理接口。
+- **研究动机**: 近期发现指出，联合预测“未来视频+动作”的模型在推理时砍掉视频分支，性能几乎不降。这引发争议：未来信息在训练时究竟只是视觉主干的正则化项，还是提供了未被当前策略捕获的“动作特异性校正信号”？实验证明，单纯增加模型容量进行常规微调无法恢复这部分信号，说明存在一种直接动作监督够不到的隐式校正方向。
+- **本质改动**: 摒弃“未来信息=生成目标”或“未来信息=正则化”的传统认知，将其重构为**动作去噪方向的残差校正信号**。训练时利用同一套权重的不同注意力范围（看未来 vs 只看当前）提取校正差值，蒸馏到一个极小的残差Adapter中。推理时完全丢弃未来视频分支，仅用Adapter对当前策略进行零开销修正。
+- **技术溯源**: 基于 Fast-WAM（Yuan et al., 2026）架构开发，底层视觉-动作联合主干采用 Wan2.2-5B Mixture-of-Transformers，训练范式沿用 Flow Matching（流匹配）进行去噪生成。
+
+**2. 技术拆解**
+- **重点改进**: 提出“同权重双路径+注意力掩码隔离”的蒸馏机制。不额外训练教师网络，而是通过控制 Action Token 的 Attention Mask 构造两条并行前向：学生路径只能 attend 到当前帧视频 Token（对齐推理设置），教师路径可 attend 全部未来视频 Token（特权访问）。两者输出动作速度的差值即为“预见残差”。将该残差目标蒸馏给一个残差Adapter，避免全量模仿带来的梯度冲突与信号稀释。
+- **架构细节**:
+  - **输入输出**: 输入加噪视频块、动作块及扩散时间步；输出为动作速度向量 $v$。
+  - **模型结构**: 共享同一套 MoT 参数。学生端输出 $v_{base}$，教师端输出加 stop-gradient 的 $v_{teacher}$。残差 $r = \text{sg}(v_{teacher} - v_{base})$。
+  - **Adapter**: 放置在动作专家流末端，结构为 3 层 SiLU MLP（隐藏层宽 512），零初始化输出权重。输入为 $v_{base}$ 和时间步编码，输出 $\hat{\delta}$，最终动作 $v_{final} = v_{base} + \hat{\delta}$。
+  - **训练模式**: 默认采用 Partial Fine-tuning，仅解冻动作和视频专家的最后各 12 层（约占每专家 40%），Adapter 同步更新。
+- **核心 Loss**: 采用四项加权和训练：
+  1. $\mathcal{L}_{gt}$: 最终速度 $v_{final}$ 对 GT 的标准流匹配 Loss。
+  2. $\mathcal{L}_{res}$: Adapter 预测 $\hat{\delta}$ 对残差 $r$ 的 MSE。$r$ 全程 detach 防止目标漂移。
+  3. $\mathcal{L}_{teacher}$: $v_{final}$ 对 $v_{teacher}$ 的软一致性 Loss（权重较低，0.1）。
+  4. $\mathcal{L}_{video}$: 原始视频重建 Loss 保持不变。
+  - **梯度路由设计**: $\mathcal{L}_{res}$ 的目标 detach 但输入 $v_{base}$ 不 detach，使得残差监督既能优化 Adapter，又能通过计算图回传至解冻的主干层，促使主干自身发射的 $v_{base}$ 向特权方向偏移，实现“Adapter+主干微调”的协同校正。
+
+**3. 实验结果**
+- **数据集和baseline**: 在 LIBERO（4个任务子集）和 RoboTwin 2.0（双臂多任务，含干净/随机场景）评估。主 Baseline 为 Fast-WAM（原版数据+本文代码复现版），横向对比带具身预训练（Embodied Pretraining）的 OpenVLA, $\pi_0$, $\pi_{0.5}$, Motus, LingBot-VA。
+- **评价指标**: 任务成功率（Success Rate），LIBERO 每任务 500 次 rollout，RoboTwin 每任务 100 次 rollout，报告各子集及平均成功率。额外控制实验隔离容量、正则化、预算分配等干扰因素。
+- **实验结果**:
+  - **性能增益**: 不引入任何具身预训练的前提下，PFD 在 LIBERO 平均成功率从 96.95% 提升至 98.10%（+1.15%），RoboTwin 2.0 平均从 91.8% 提升至 92.9%（+1.1%）。超越 Motus、$\pi_{0.5}$ 等依赖预训练的基线，接近当前最优。
+  - **信号有效性验证**: 对照实验表明：① 仅解冻相同层数直接微调（增加容量）性能反而下降 0.25%；② 打乱教师端未来帧顺序（破坏时序逻辑）增益完全消失。证实提升纯粹来自“未来引导的动作校正信号”，而非容量或正则化副作用。
+  - **推理开销**: 严格保留 Fast-WAM 的当前帧输入接口，测试时零视频生成、零教师网络实例化。仅增加每步去噪中一次轻量 MLP 前向计算，端到端延迟增加可忽略，实现“训练吃透未来，推理零成本”的目标。
+
+---
+
+
+### 2. 🔥 [Libra-VLA: Achieving Learning Equilibrium via Asynchronous Coarse-to-Fine Dual-System] (Libra-VLA：通过异步粗细粒度双系统实现学习均衡)
+- **研究机构**: `北京航空航天大学，银河通用（AgiBot）`
+- **Arxiv ID**: `2604.24921` | [点击跳转](https://arxiv.org/abs/2604.24921)
+
+**0. 论文标题**
+- **英文标题**: Libra-VLA: Achieving Learning Equilibrium via Asynchronous Coarse-to-Fine Dual-System
+- **中文标题**: Libra-VLA：通过异步粗细粒度双系统实现学习均衡
+- **研究机构**: 北京航空航天大学，银河通用（AgiBot）
+
+**1. 整体逻辑**
+- **研究任务**: 视觉-语言-动作（VLA）模型的机器人操控策略生成，将高层语义指令与视觉观测映射为底层高频连续控制指令。
+- **研究动机**: 现有VLA多采用单体扁平架构，直接将VLM特征映射到连续电机指令。这忽略了物理操作“先定宏观方向、再做微观对齐”的天然层次，导致语义-执行跨模态鸿沟过大。单一网络被迫同时处理抽象推理与高频控制，表征和训练负担过重。
+- **本质改动**: 将动作空间拆分为“混合动作空间”：用粗粒度离散Token表征宏观方向意图，用连续残差表征微观位姿对齐。通过解耦的双系统分别承担这两个子任务，并采用异步执行策略，核心目的是让两个模块的学习难度达到平衡，从而换取最优整体性能。
+- **技术溯源**: VLM基座采用 InternVL2.5-2B；Refiner 视觉特征提取采用 SigLIP；离散分类头与扩散Transformer为自研扩展。
+
+**2. 技术拆解**
+- **重点改进**: 
+  1. **学习难度均衡原则**：刻意使用较粗的分桶抽象意图而非追求高精度逼近。实验发现性能与分解粒度呈倒U型曲线，仅当Planner与Refiner的学习难度持平时，整体表现最佳。
+  2. **异步执行机制**：引入意图缓存队列（Intent Buffer）解耦高低频计算。Planner 低频一次性预测长序列粗意图并填满队列，随后休眠；Refiner 高频逐时间步从队列切片读取意图作为条件，大幅削减大模型调用次数，保障实时响应。
+- **架构细节**:
+  - **System 2 (Planner)**: 在VLM特征后拼接可学习动作Query，经12层双向Transformer处理，输出各维度的粗分桶概率。负责低频语义路由。
+  - **System 1 (Refiner)**: 独立SigLIP编码器提取高频几何特征。基于Diffusion Transformer，以“噪声动作+几何特征+Planner意图Embedding”为条件进行去噪。负责高频连续生成。
+  - **动态课程策略**: Refiner训练初期使用Ground Truth意图防发散；Planner稳定后，改为从其预测分布采样。使Refiner提前适应规划噪声，具备天然抗偏纠错能力。
+- **核心 Loss**: 联合加权优化，防止量级差异导致梯度主导。
+  - Planner端：交叉熵损失 $\mathcal{L}_{plan}$（预测离散桶索引）。
+  - Refiner端：扩散标准MSE损失 $\mathcal{L}_{diff}$（预测去噪残差）。
+  - 总Loss: $\mathcal{L}_{total} = \lambda_{diff}\mathcal{L}_{diff} + \lambda_{plan}\mathcal{L}_{plan}$。
+
+**3. 实验结果**
+- **数据集和baseline**: 
+  - **数据集**: 仿真基准 LIBERO 与 LIBERO-Plus（含视觉扰动/布局变化/长程任务）；补充多项真机实操任务。未依赖大规模机器人数据预训练。
+  - **Baseline**: 覆盖主流离散模型（OpenVLA, DD-VLA, $\pi_0$-FAST等）与连续模型（Diffusion Policy, Octo, GR00T-N1, $\pi_{0.5}$等）。
+- **评价指标**: 任务成功率（Success Rate），按空间(Spatial)、物体(Object)、目标(Goal)、长程(Long)拆分统计；同步评估推理延迟与零样本/微调泛化表现。
+- **实验结果**:
+  - LIBERO平均成功率达 **97.2%**，取得当前SOTA。在依赖精细交互的Object（99.4%）与长程规划Long（92.8%）上领先明显。
+  - LIBERO-Plus零样本与微调设定下，抗扰动泛化能力全面优于对比基线。
+  - 异步机制显著降低推理延迟与VLM调用频次，满足高频控制需求。消融实验证实“分解粒度-学习均衡”倒U型规律成立；真机部署验证了架构在物理环境中的稳定执行与实时性。
+
+---
+</script>
+            <script>
+                const rawMdElement = document.getElementById('raw-markdown');
+                if (rawMdElement) {
+                    document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent);
+                    // 渲染后触发公式排版
+                    if (window.MathJax && window.MathJax.typesetPromise) {
+                        window.MathJax.typesetPromise();
+                    }
+                }
+                function copySources() { /* 原代码保持不变 */ }
+            </script>
+        </body>
+        </html>
+        
