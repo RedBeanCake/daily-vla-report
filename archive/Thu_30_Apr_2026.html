@@ -1,0 +1,125 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>🤖 具身大模型简报 - Thu, 30 Apr 2026 (VLA: 2 of 28 entries)</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <script>
+                window.MathJax = {
+                    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+                    options: { skipHtmlTags: ['script', 'style', 'textarea'] }
+                };
+            </script>
+            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+            <style>
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+            </style>
+        </head>
+        <body class="markdown-body">
+            <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
+            <h1>🤖 具身大模型简报 - Thu, 30 Apr 2026 (VLA: 2 of 28 entries)</h1>
+            <div id="content"></div>
+            
+            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [Unified 4D World Action Modeling from Video Priors with Asynchronous Denoising] (基于视频先验与异步去噪的统一4D世界动作建模)
+- **研究机构**: `清华大学、小米机器人、北京大学、中科院自动化所`
+- **Arxiv ID**: `2604.26694` | [点击跳转](https://arxiv.org/abs/2604.26694)
+
+**0. 论文标题**
+- **英文标题**: Unified 4D World Action Modeling from Video Priors with Asynchronous Denoising
+- **中文标题**: 基于视频先验与异步去噪的统一4D世界动作建模
+- **研究机构**: 清华大学、小米机器人、北京大学、中科院自动化所
+
+**1. 整体逻辑**
+- **研究任务**: 统一4D世界动作建模，即在单一模型中同时完成未来多视角RGB-D视频生成、3D空间重建与机器人动作策略预测。
+- **研究动机**: 现有统一世界动作模型仅做2D像素预测，缺乏显式3D几何感知，易产生物理不合理的画面且无法重建3D结构；同时，高清视频需要多步去噪，而低维动作只需极少步数即可解码，两者在推理延迟上存在天然冲突。
+- **本质改动**: 1）在预训练视频DiT中并联轻量级深度预测分支，注入显式3D信息且不破坏原有权重；2）提出异步噪声采样（ANS），训练时约束视频与动作的噪声步数服从联合分布，推理时动作先快速去噪执行，视频继续去噪保画质。
+- **技术溯源**: 基于开源视频扩散模型 Wan2.2-TI2V-5B (DiT架构) 微调。
+
+**2. 技术拆解**
+- **重点改进**: 
+  - *轻量深度适配*：不将深度图拼接入序列（避免序列长度翻倍和注意力计算量暴增），直接复制预训练DiT的最后M个Block构建独立深度分支。该分支通过单向交叉注意力读取RGB主干特征，仅回归逆深度图，主干不受深度Token干扰，严格保留视频先验。
+  - *异步噪声采样 (ANS)*：推理时拆分流程：动作/状态用 $T_a$ 步去噪后直接下发给控制器，视频继续用 $T_o$ 步去噪生成高清画面。训练时摒弃完全独立的随机采样，改为联合分布采样，强制 $t_O \ge t_a$，并用Beta(1.5,1)分布偏向高噪声区间，使训练分布严格对齐推理过程，消除 $t_O < t_a$ 的无效训练样本。
+- **架构细节**: 
+  - *输入输出*：输入语言指令、初始本体状态、单帧多视角RGB；输出8帧未来RGB视频、8个状态、32个动作（动作时间分辨率是视频的4倍）。
+  - *结构配置*：RGB经因果VAE编码，状态/动作经可学习MLP投影后拼接为统一序列，输入DiT进行双向全注意力计算。相机外参不显式预测，而是由输出的末端执行器位姿结合固定手眼标定矩阵推导，用于多视角点云融合。
+  - *参数规模*：基座为5B参数DiT，深度分支仅复制末端几层，增量极小，推理时可灵活开关。
+- **核心 Loss**: 
+  - 主干采用 Flow Matching 框架的速度场预测MSE Loss，分别计算视频($\mathcal{L}_O$)、状态($\mathcal{L}_s$)、动作($\mathcal{L}_a$)。
+  - 辅助任务：深度分支使用逆深度的MSE回归Loss ($\mathcal{L}_{depth}$)。
+  - 总Loss：$\mathcal{L}_{total} = \mathcal{L}_O + \lambda_s\mathcal{L}_s + \lambda_a\mathcal{L}_a + \lambda_D\mathcal{L}_{depth}$。
+
+**3. 实验结果**
+- **数据集和baseline**: 
+  - *数据*：混合真实与仿真机器人操作数据，预处理后超5800小时。
+  - *基准*：RoboCasa（24项厨房操作）、RoboTwin 2.0。
+  - *对比*：现有统一模型（UWM, VideoVLA, Cosmos Policy, DreamZero等）及传统VLA方法。
+- **评价指标**: 
+  - 策略性能：闭环仿真平均任务成功率（SR）。
+  - 生成与重建：视频视觉指标（如FVD）与3D几何重建指标（如倒角距离等）。
+- **实验结果**: 
+  - 策略执行：RoboCasa平均成功率79.2%，RoboTwin 2.0达90.7%，显著优于所有对比基线。
+  - 4D能力：视频生成清晰度与3D点云重建精度均领先现有方法。
+  - 实际部署：真机实验验证了ANS的低延迟特性，动作可在首步去噪完成后立即执行，证明该架构能在单模型内兼顾高质量4D仿真与实时物理控制。
+
+---
+
+
+### 2. 🔥 [STARRY: Spatial-Temporal Action-Centric World Modeling for Robotic Manipulation] (STARRY：面向机器人操作的时空动作中心世界模型)
+- **研究机构**: `Beijing Institute of Technology / Zhongguancun Academy (中关村学院/人工智能研究院)`
+- **Arxiv ID**: `2604.26848` | [点击跳转](https://arxiv.org/abs/2604.26848)
+
+**0. 论文标题**
+- **英文标题**: STARRY: Spatial-Temporal Action-Centric World Modeling for Robotic Manipulation
+- **中文标题**: STARRY：面向机器人操作的时空动作中心世界模型
+- **研究机构**: Beijing Institute of Technology / Zhongguancun Academy (中关村学院/人工智能研究院)
+
+**1. 整体逻辑**
+- **研究任务**: 语言指令引导的双臂机器人多步灵巧操作策略生成。
+- **研究动机**: 现有VLA策略多依赖当前观测做反应式输出，缺乏对未来的显式建模；已引入世界模型的方法虽能预测未来，但预测目标通常追求视频/视觉一致性，与“动作能否成功执行”存在偏差。同时，全局共享的注意力机制难以区分背景与对抓取、接触、对齐等决策关键的局部几何区域，导致在空间约束强的任务中容易失败。
+- **本质改动**: 放弃“先预测未来再反推动作”的串联流程，改为在统一扩散框架内**联合去噪**未来时空隐变量与动作序列，保证预测结构与控制需求直接对齐。同时设计几何感知注意力模块，将预测的3D几何信息转化为注意力偏置，强制动作生成时聚焦关键交互区域。
+- **技术溯源**: 时空世界模型分支基于 **Wan 视频扩散模型**初始化；视觉理解分支基于 **Qwen-VL**；动作生成沿用标准 Transformer 结构，整体训练范式继承自 Flow Matching / Diffusion Policy。
+
+**2. 技术拆解**
+- **重点改进**:
+  1. **联合时空-动作去噪**：将未来时空隐变量 $\mathbf{z}_{t+1:t+H}$ 和动作序列 $\mathbf{a}_{t+1:t+H}$ 放在同一生成流程中联合优化，两者共享历史观测编码与扩散过程，消除预测与控制的目标错位。
+  2. **GASAM (几何感知选择性注意力调制)**：独立训练一个几何专家预测未来深度图与末端位姿。将各视觉像素点反投影到3D空间，计算其与预测末端的欧氏距离，并映射为与视频Token网格对齐的权重。在动作注意力计算中，将该权重的对数项直接加到 Q-K 相似度之后、Softmax 之前，显式调高关键区域的注意力得分。该调制仅作用于动作分支，不干扰视频建模和语义理解。
+- **架构细节**:
+  - **输入**: 多视角RGB-D、相机内外参、当前末端位姿、历史动作、语言指令。
+  - **四模块设计**: Understanding Expert（提取视觉语言特征）→ ST World Model（编码历史RGB-D/轨迹并预测未来时空隐变量）→ Geometry Expert（预测未来深度与末端位姿）→ Action Expert（输出动作序列）。
+  - **数据流转**: 历史多模态观测经相机投影拼接为固定布局，编码为视频Token。视频Token同时送入ST World Model和Geometry Expert。ST World Model的输出与Geometry Expert经GASAM转换的权重，共同作为Action Expert交叉注意力的输入。
+  - **数据组织**: 采用L1-L6分层数据策略，从大规模Web视频（学语义/时序）→ 仿真/交互数据（学几何/3D结构）→ 多机/目标真机轨迹（学动作与域适配）。
+- **核心 Loss**:
+  - **扩散主Loss**: $\mathcal{L}_{\text{diff}} = \lambda_o \mathcal{L}_{\text{obs}} + \lambda_a \mathcal{L}_{\text{action}}$。观测隐变量和动作序列分别使用独立的扩散时间步，模型预测速度场进行拟合。
+  - **几何监督Loss**: $\mathcal{L}_{\text{geo}} = \lambda_d \mathcal{L}_{\text{depth}} + \lambda_p \mathcal{L}_{\text{pose}} + \lambda_w \mathcal{L}_{\text{weight}}$。$\mathcal{L}_{\text{weight}}$ 使用真实3D距离构造的目标注意力图直接监督GASAM的权重输出，确保几何引导与物理距离一致。
+  - **训练流程**: 三阶段。1. ST World Model + Understanding Expert 大规模预训练；2. 加入 Geometry Expert + Action Expert 联合扩散训练；3. 引入GASAM进行全模块端到端微调。
+
+**3. 实验结果**
+- **数据集和baseline**:
+  - 仿真基准：RoboTwin 2.0（50项双臂任务，含Clean与Randomized域随机化设置）。
+  - 真机基准：ARX R5双臂平台上的三项两阶段长程任务（递蔬菜、整理房间、洗奶瓶）。
+  - 对比方法：$\pi_{0.5}$, X-VLA, Motus, LingBot-VA 等主流VLA与预测增强策略。所有方法在相同数据池和训练步数下对比。
+- **评价指标**: 任务成功率（Success Rate）。仿真统计每任务多次rollout均值，真机每阶段20次rollout取均值。
+- **实验结果**:
+  - **仿真**: 平均成功率 Clean **93.82%** / Randomized **93.30%**，整体排名第一，超过第二名 LingBot-VA (92.93%/91.55%) 和 Motus (88.66%/87.02%)。在强依赖时空协调与几何对齐的难点任务上提升显著，如 `Handover Mic` 达100%/99%，`Hanging Mug` 达69%/72%（较此前最优提升超30%），验证了联合预测与几何调制对细粒度接触任务的有效性。
+  - **真机**: 六项阶段评估平均成功率 **70.8%**，大幅优于 $\pi_{0.5}$ 的 **42.5%**。在更复杂的多阶段任务（Stage 2）上领先幅度最大（+31.7%），说明该架构在抗感知噪声和支撑多步长程规划上具备实际优势。消融实验确认了联合去噪设计与GASAM模块带来的核心性能增益。
+
+---
+</script>
+            <script>
+                const rawMdElement = document.getElementById('raw-markdown');
+                if (rawMdElement) {
+                    document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent);
+                    // 渲染后触发公式排版
+                    if (window.MathJax && window.MathJax.typesetPromise) {
+                        window.MathJax.typesetPromise();
+                    }
+                }
+                function copySources() { /* 原代码保持不变 */ }
+            </script>
+        </body>
+        </html>
+        
