@@ -1,0 +1,113 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>🤖 具身大模型简报 - Fri, 1 May 2026 (VLA: 2 of 32 entries)</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <script>
+                window.MathJax = {
+                    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+                    options: { skipHtmlTags: ['script', 'style', 'textarea'] }
+                };
+            </script>
+            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+            <style>
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+            </style>
+        </head>
+        <body class="markdown-body">
+            <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
+            <h1>🤖 具身大模型简报 - Fri, 1 May 2026 (VLA: 2 of 32 entries)</h1>
+            <div id="content"></div>
+            
+            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [LaST-R1: Reinforcing Action via Adaptive Physical Latent Reasoning for VLA Models] (LaST-R1：基于自适应物理隐空间推理强化VLA模型动作生成)
+- **研究机构**: `北京大学、香港中文大学、Simplexery Robotics`
+- **Arxiv ID**: `2604.28192` | [点击跳转](https://arxiv.org/abs/2604.28192)
+
+**0. 论文标题**
+- **英文标题**: LaST-R1: Reinforcing Action via Adaptive Physical Latent Reasoning for VLA Models
+- **中文标题**: LaST-R1：基于自适应物理隐空间推理强化VLA模型动作生成
+- **研究机构**: 北京大学、香港中文大学、Simplexery Robotics
+
+**1. 整体逻辑**
+- **研究任务**: 具身视觉-语言-动作（VLA）模型的强化学习后训练与机器人连续控制。
+- **研究动机**: 现有VLA要么用显式语言/状态推理（推理慢、离散化、抓不住高频连续物理动态），要么用隐空间推理但被锁在静态模仿学习里，泛化差。引入在线RL的现有方法只在动作空间做优化，忽略了动作前的隐式物理推理过程，导致环境交互适应性弱。
+- **本质改动**: 在生成动作前强制加入“隐空间思维链（CoT）”预测物理动态，并设计专用RL算法同时更新隐向量和动作；同时让模型学会根据任务复杂度动态调整推理步数。
+- **技术溯源**: 基座 LLM/VLM: Qwen3-VL-4B；视觉编码器: SigLIP2-Large；隐空间物理锚点特征: DINOv3。
+
+**2. 技术拆解**
+- **重点改进**: 
+  1. **隐空间物理锚点**：放弃平均池化或可学习参数，离线提取 DINOv3 的 `<CLS>` token，按通道幅值取 Top-k 对齐 LLM 维度作为推理目标。零训练/推理额外开销，保留细粒度物理语义。
+  2. **LAPO 联合优化算法**：改造标准 PPO，将连续隐向量视为隐式决策变量。在同一时间步内，动作序列计算离散概率比，隐向量序列用各向同性高斯距离近似概率比。环境奖励信号直接同时重塑内部推理流形和末端动作分布。
+  3. **自适应推理步长**：将 `<latent_end>` 从固定后缀改为动态终止符。训练时在4个预设位置按温度分布采样探索长度；推理时若该 token 预测概率 ≥0.99 则立刻截断转向动作解码，平衡计算开销与规划深度。
+- **架构细节**: 输入图像块+指令后，LLM 自回归生成 $N_z$ 个隐推理 token $\rightarrow$ 生成 `<latent_end>` 停止推理 $\rightarrow$ 复用 KV Cache，通过双向注意力在单步前向传播中并行解码离散化的动作 chunk token。骨干末尾共享一个 4 层 MLP Value Head 输出状态价值。动作输出归一化后映射为离散词表 token（单臂7-DoF/双臂14-DoF）。
+- **核心 Loss**: 总目标 = 动作PPO Loss + $\lambda_1$×隐空间PPO Loss + $\lambda_2$×价值MSE Loss + $\lambda_3$×终止Token PPO Loss。核心是将连续隐向量 rollout 采样值与当前策略输出的欧氏距离平方和代入 PPO 的截断目标函数，实现隐空间策略梯度更新；终止 token 独立加一项 PPO loss 控制退出时机。
+
+**3. 实验结果**
+- **数据集和baseline**: 仿真用 LIBERO 全分集（40个任务，Franka Panda 单视角）；真机部署 4 个复杂单/双臂任务。对比包括全量数据 SFT 模型，以及 GRAPE (DPO)、VLA-RL/$\pi_{RL}$ (PPO)、TGRPO/SimpleVLA-RL (GRPO) 等 RL 后训练基线。本文仅用 1 条轨迹做 SFT 热身即进入在线 RL。
+- **评价指标**: 50 个未见测试场景的平均成功率（SR）、训练收敛速度；真机任务绝对成功率。
+- **实验结果**: 
+  - LIBERO 仿真：平均成功率 99.8%，收敛速度显著快于基线，超越使用 50 条完整轨迹热身的 SOTA。
+  - 真机部署：LAPO 后训练相比初始 SFT 策略成功率最高提升 44%，单双臂平均成功率稳定在 90%。
+  - 泛化与鲁棒性：RL 微调后可 Zero-shot 适应未见物体、背景与光照变化；联合优化策略的稳定性与闭环适应性大幅优于仅优化动作空间的 vanilla PPO。
+
+---
+
+
+### 2. 🔥 [MotuBrain: An Advanced World Action Model for Robot Control] (MotuBrain：一种用于机器人控制的高级世界动作模型)
+- **研究机构**: `胜书科技 (Shengshu AI) / MotuBrain Team`
+- **Arxiv ID**: `2604.27792` | [点击跳转](https://arxiv.org/abs/2604.27792)
+
+**0. 论文标题**
+- **英文标题**: MotuBrain: An Advanced World Action Model for Robot Control
+- **中文标题**: MotuBrain：一种用于机器人控制的高级世界动作模型
+- **研究机构**: 胜书科技 (Shengshu AI) / MotuBrain Team
+
+**1. 整体逻辑**
+- **研究任务**: 机器人视觉-语言-动作（VLA）策略学习，统一建模环境状态演化（世界模型）与机器人动作生成。
+- **研究动机**: 传统VLA依赖静态图文数据，缺乏对物理动态的细粒度时序预测能力，易陷入浅层行为模仿；早期“视频生成+逆动力学”的两阶段管线存在预测误差累积问题。需要将视频预测与动作生成统一优化，并解决大扩散模型推理延迟高、无法高频实时闭环的部署瓶颈。
+- **本质改动**: 采用统一流匹配框架，将视频潜变量与动作序列置于同一生成目标下联合优化；引入“视频不依赖动作”的非对称（V2A）注意力机制，在推理阶段冻结视频流、仅迭代动作流；构建面向真实硬件的异步推理栈与重叠动作约束，实现低延迟闭环控制。
+- **技术溯源**: 视频生成基座 Vidu（提供VAE结构与预训练权重）；多模态统一生成范式 UniDiffuser；注意力稀疏化设计 HBridge；推理缓存策略 DreamZero。
+
+**2. 技术拆解**
+- **重点改进**: 
+  1. 统一相对动作表征：使用基于当前观测帧的相对末端执行器（EEF）坐标（位置直接相减、旋转左乘逆矩阵、夹爪不变），抹平不同机器人本体的初始位姿差异，提升异构数据训练兼容性。
+  2. V2A推理调度：训练时动作流可交叉关注视频/文本，视频流不关注动作。推理时前N步联合去噪，后续冻结视频流KV Cache，仅更新动作流，移除重复的视频前向计算。
+  3. 推理加速组合：独立SNR噪声步长采样（视频偏噪声、动作均匀分布）、DiT速度预测缓存（相似度阈值跳过重复计算）、FP8权重量化、`torch.compile`图优化。
+  4. 异步闭环执行：模型推理与底层控制频率解耦。下一chunk生成时，将未执行的上一chunk动作作为硬约束注入，消除分块切换带来的动作回退和速度跳变。
+- **架构细节**: 
+  - 输入输出：输入文本token、Vidu VAE编码的条件帧及未来视频潜变量、带噪动作token；输出未来视频潜变量速度场与动作序列。
+  - 模型结构：三流混合Transformer（文本流仅作条件注入无输出头）。采用H-bridge路由：底层和顶层25%的Transformer层解耦处理视频/动作，中间50%层执行全量视频-动作联合注意力。多视图输入通过3D RoPE空间位置偏移直接拼接至token序列，骨干网无需改动。
+  - 动作维度：固定10维（3D位置+6D旋转表示+1D夹爪），仅夹爪归一化至[-1,1]，其余保持物理尺度。
+- **核心 Loss**: 主Loss为加权MSE $\mathcal{L}=\lambda_v\mathcal{L}_v + \lambda_a\mathcal{L}_a$，分别计算视频速度场与动作的预测误差。预训练分两阶段：Stage 1冻结动作分支，仅用视频Loss适配交互先验；Stage 2冻结视频分支，仅用动作Loss学习相对控制。统一框架下两模态隐式对齐，无额外重建或对比辅助任务。
+
+**3. 实验结果**
+- **数据集和baseline**: 
+  - 数据：四级数据金字塔（互联网视频 → 第一人称交互视频 → 异构双臂机器人数据 → 目标本体数据）。
+  - Baseline：未做任何优化的原始模型（50步标准联合去噪）作为对照基线；仿真验证环境为 RoboTwin 2.0。
+- **评价指标**: 端到端推理延迟（ms）、控制频率（Hz）、累计加速比（Speedup）、任务成功率（验证加速是否损伤策略能力）、动作连续性/边界抖动（定性）。
+- **实验结果**: 
+  - 推理效率：五项优化叠加后，单次生成延迟从 4.90s 降至 0.09s，控制频率从 0.20 Hz 提升至 11.11 Hz，**端到端提速 54.4 倍**，满足高频实时控制要求。
+  - 精度无损：在 RoboTwin 2.0 上，加速配置与原始配置的平均任务成功率波动小于 1%，证明优化仅剔除冗余计算，未损伤策略表征。
+  - 闭环稳定性：真实世界部署中，异步分块执行结合重叠区域约束，有效消除了切换边界的动作回退与高频抖动，动作轨迹平滑。
+
+---
+</script>
+            <script>
+                const rawMdElement = document.getElementById('raw-markdown');
+                if (rawMdElement) {
+                    document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent);
+                    // 渲染后触发公式排版
+                    if (window.MathJax && window.MathJax.typesetPromise) {
+                        window.MathJax.typesetPromise();
+                    }
+                }
+                function copySources() { /* 原代码保持不变 */ }
+            </script>
+        </body>
+        </html>
+        
