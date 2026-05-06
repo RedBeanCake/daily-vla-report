@@ -1,0 +1,131 @@
+
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>🤖 具身大模型简报 - Wed, 6 May 2026 (VLA: 3 of 26 entries)</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            <script>
+                window.MathJax = {
+                    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+                    options: { skipHtmlTags: ['script', 'style', 'textarea'] }
+                };
+            </script>
+            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+            <style>
+                .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; }
+                @media (max-width: 767px) { .markdown-body { padding: 15px; } }
+            </style>
+        </head>
+        <body class="markdown-body">
+            <a href='../index.html' style='margin-bottom:20px; display:block;'>← 返回主索引</a>
+            <h1>🤖 具身大模型简报 - Wed, 6 May 2026 (VLA: 3 of 26 entries)</h1>
+            <div id="content"></div>
+            
+            <script type="text/markdown" id="raw-markdown">### 1. 🔥 [RoboAlign-R1: Distilled Multimodal Reward Alignment for Robot Video World Models] (RoboAlign-R1：面向机器人视频世界模型的蒸馏多模态奖励对齐)
+- **研究机构**: `清华大学、腾讯研究院、纽约市立大学、香港中文大学、南洋理工大学、卡内基梅隆大学（通讯单位：清华大学/腾讯）`
+- **Arxiv ID**: `2605.03821` | [点击跳转](https://arxiv.org/abs/2605.03821)
+
+**0. 论文标题**
+- **英文标题**: RoboAlign-R1: Distilled Multimodal Reward Alignment for Robot Video World Models
+- **中文标题**: RoboAlign-R1：面向机器人视频世界模型的蒸馏多模态奖励对齐
+- **研究机构**: 清华大学、腾讯研究院、纽约市立大学、香港中文大学、南洋理工大学、卡内基梅隆大学（通讯单位：清华大学/腾讯）
+
+**1. 整体逻辑**
+- **研究任务**: 机器人视频世界模型的训练与长程动作条件视频生成（预测执行动作后的未来画面序列）。
+- **研究动机**: 现有世界模型训练依赖像素重建或低层视觉相似度（如MSE/LPIPS），优化的是统计相似性，与机器人决策真正关心的“指令跟随、操作成功率、物理合理性”严重错位。此外，自回归生成长序列时，逐帧误差会不断累积，导致后期画面物理失真。
+- **本质改动**: 1) 训练侧：用高层语义/物理对齐的多模态奖励信号替换低层视觉Loss，进行强化学习后训练；2) 推理侧：引入滑动窗口重编码（SWR）定期刷新上下文视觉状态，切断自回归误差累积链路。
+- **技术溯源**: 视觉Tokenizer基于双分支FSQ架构；自回归世界模型骨干为12层LLaMA Transformer；多模态教师Judge基于Qwen2.5-VL-8B-Thinking微调；RL算法采用GRPO。
+
+**2. 技术拆解**
+- **重点改进**: 构建`RobotWorldBench`（1万条带6维细粒度标注的机器人视频-指令对），训练教师Judge提供多维度打分。将教师蒸馏为轻量级学生奖励模型（~98M参数），支持在线高频推理，解决大模型Judge作为RL奖励延迟过高的问题。配合GRPO进行策略微调，并引入训练免费的SWR推理策略稳定长程生成。
+- **架构细节**: 世界模型采用Token化-自回归预测-解码范式。首帧编码为1280个上下文Token，后续每帧编码为80个动态Token（仅携带残差变化）。连续动作离散化后与视觉Token交错拼接。12层LLaMA在因果掩码下预测下一动态Token。教师Judge接收（指令, 视频）输入，输出6维原始分；学生模型接收相同输入，通过视觉/文本编码+Sigmoid头直接回归[0,1]归一化分数。采用每K次策略更新重新调用教师打分刷新学生数据的在线迭代蒸馏，防止Reward Hacking。
+- **核心 Loss**: 
+  - 预训练：标准自回归交叉熵（仅对动态Token计算Masked CE）。
+  - 蒸馏：多维权重平衡的Huber回归Loss，约束学生输出逼近教师归一化打分。
+  - RL后训练：GRPO目标函数（组内归一化优势函数 + PPO裁剪策略梯度） + KL散度惩罚项约束模型不偏离预训练分布。复合奖励为6维学生分数的加权和。
+
+**3. 实验结果**
+- **数据集和baseline**: 生成评估基于RT-1和BridgeData V2。对比组包含闭源视频模型（Kling 2.6, Runway Gen-4等）、开源视频模型（Hunyuan, LTX, SVD等）及具身世界模型基线（最强为iVideoGPT）。
+- **评价指标**: 核心指标为自研6维Judge聚合打分（侧重任务对齐与物理真实感）。辅以像素级指标（SSIM, LPIPS, MSE）。额外使用外部通用VLM交叉打分与小样本双盲人工评估验证排名可靠性。
+- **实验结果**: 奖励对齐后，综合6维得分达8.52，比最强基线iVideoGPT提升10.1%（操作准确率+7.5%，指令跟随+4.6%），评分方差下降75.8%。SWR策略仅引入约1%推理延迟，长程预测SSIM提升2.8%，LPIPS降低9.8%（ROI区域LPIPS降12.2%）。上述排名提升均在外部VLM校验与人工盲测中得到一致复现。奖励计算开销较教师Judge下降超10倍。
+
+---
+
+
+### 2. 🔥 [OGPO: Sample Efficient Full-Finetuning of Generative Control Policies] (OGPO：生成式控制策略的高效全参数微调算法)
+- **研究机构**: `Carnegie Mellon University, UC Berkeley, University of Washington, Toyota Research Institute`
+- **Arxiv ID**: `2605.03065` | [点击跳转](https://arxiv.org/abs/2605.03065)
+
+**0. 论文标题**
+- **英文标题**: OGPO: Sample Efficient Full-Finetuning of Generative Control Policies
+- **中文标题**: OGPO：生成式控制策略的高效全参数微调算法
+- **研究机构**: Carnegie Mellon University, UC Berkeley, University of Washington, Toyota Research Institute
+
+**1. 整体逻辑**
+- **研究任务**: 对机器人操作中常用的生成式策略（GCP，如Diffusion/Flow模型）进行离线到在线的全参数强化学习微调。
+- **研究动机**: 现有微调路线存在效率与能力的互斥。部分更新方法（如只调初始噪声或学残差）样本效率高，但策略表达能力受限，基础策略覆盖差时无法探索新行为；全策略On-Policy RL更新能力强，但极度依赖昂贵的环境交互，样本效率太低。需要一种既能复用历史数据，又能完整更新生成过程的算法。
+- **本质改动**: 将环境交互与策略生成解耦优化。利用Off-Policy TD学习在环境交互数据上训练Q值网络（负责长期价值评估，保样本效率）；将Q值直接作为奖励信号，在纯计算生成的“内部去噪轨迹”上运行On-Policy PPO（负责全参数更新，零交互成本）。用计算换样本，避免了对Q网络或冗长去噪链做梯度回传。
+- **技术溯源**: 基于 Flow/Diffusion Policy 架构；结合双层MDP（Bi-level MDP）思想；借鉴 PPO 的策略梯度更新形式，以及 LLM 对齐中 GRPO 的多响应并行采样思想。
+
+**2. 技术拆解**
+- **重点改进**: 提出零阶（Zero-order）策略提取范式。不依赖 $\nabla_a Q$ 或BPTT回传去噪步，而是通过蒙特卡洛采样多条去噪轨迹，利用PPO的比率裁剪机制直接优化轨迹联合概率。引入类似GRPO的并行多轨迹采样，用均值压低策略梯度方差。针对Flow策略在推理加噪导致概率分布偏移的问题，加入ODE-to-SDE的解析修正，保证PPO比率计算合法。
+- **架构细节**: 输入为环境交互Buffer（状态、动作、奖励）。核心循环分两步：① Critic端：用标准TD Loss更新Q值网络集成，支持历史数据复用。② Actor端：从Buffer随机采状态，并行生成 $N_{group}$ 条去噪轨迹，用目标Q网络评估末端动作价值并计算优势，一次性更新整个GCP权重。模型规模与基座GCP一致（如Flow的步数K、通道维度），算法本身不增加额外可训练网络，仅维护EMA目标策略和Q网络集成。
+- **核心 Loss**: 
+  - **主 Loss (Actor)**: 标准PPO裁剪Loss，优势项 $\hat{A} = Q_{\text{targ}}(s, a_{K\to0}) - V_{\text{baseline}}$，直接作用于K步去噪的联合似然比。
+  - **主 Loss (Critic)**: 标准Off-Policy TD Error。
+  - **辅助任务**: 在线成功轨迹的行为克隆（BC）正则（稳定分布）；Critic权重的L2正则化（防Q值高估）；保守优势估计（抑制离线到在线的性能跌落）。
+
+**3. 实验结果**
+- **数据集和baseline**: 仿真环境覆盖 Franka-Kitchen、Robomimic、Adroit Hand、LIBERO，包含高自由度灵巧手、密集接触、高精度插拔等任务。对比基线包括 DPPO（全PPO展开）、DSRL/EXPO（噪声引导/残差学习）、QC（Best-of-N监督微调）等。
+- **评价指标**: 任务最终成功率、达到特定成功率所需的环境交互步数（样本效率）、训练曲线稳定性、超参数敏感度。
+- **实验结果**: OGPO系列在所有测试环境上均取得SOTA。相比部分微调方法，OGPO能突破初始BC策略的性能天花板；相比全PPO展开（DPPO），在同等交互量下成功率高出数十个百分点。最显著的表现是：在线Buffer中**零专家演示数据**的情况下，仍能将初始化很差的策略微调至接近100%成功率。消融证实并行采样、解耦优化和Q值正则缺一不可，且算法对超参数不敏感，基本可直接迁移到新任务。
+
+---
+
+
+### 3. 🔥 [Refining Compositional Diffusion for Reliable Long-Horizon Planning] (精炼组合扩散以实现可靠的长程规划)
+- **研究机构**: `KAIST, University of Michigan, Korea University, INEEJI`
+- **Arxiv ID**: `2605.03075` | [点击跳转](https://arxiv.org/abs/2605.03075)
+
+**0. 论文标题**
+- **英文标题**: Refining Compositional Diffusion for Reliable Long-Horizon Planning
+- **中文标题**: 精炼组合扩散以实现可靠的长程规划
+- **研究机构**: KAIST, University of Michigan, Korea University, INEEJI
+
+**1. 整体逻辑**
+- **研究任务**: 长程轨迹规划（Long-Horizon Planning），核心是通过组合多个短程扩散模型生成的片段，拼出完整的长轨迹。
+- **研究动机**: 现有组合扩散方法（如CompDiffuser）在拼接短片段时，直接对重叠区域的去噪分数求平均。当局部轨迹分布存在多模态时，这种平均会引发“模态平均（mode-averaging）”问题，导致拼出的轨迹落在低概率区（如直接穿墙）。规划越长，模态冲突概率呈指数上升，有效轨迹率骤降。现有方案（如CDGS）依赖推理时的大量候选采样、重排序与剪枝，计算开销大且属于事后筛选，无法从根本上修正去噪轨迹。
+- **本质改动**: 提出一种无需训练的推理时引导策略（RCD）。利用预训练扩散模型固有的“自重建误差”作为轨迹概率密度的代理信号，配合“重叠边界一致性”约束，在去噪的每一步直接施加梯度引导，强制采样走向高概率、全局连贯的轨迹，从生成源头规避模态平均。
+- **技术溯源**: 基于标准DDPM与组合扩散规划框架（GSC/CompDiffuser）。不依赖外部大模型基座，作为纯推理阶段的即插即用模块，直接作用于已有的局部扩散模型。
+
+**2. 技术拆解**
+- **重点改进**: 设计两项训练-free的引导信号：
+  1) **自重建误差**：将当前步预测的干净轨迹估计 $\hat{\tau}_0$ 加回指定强度的高斯噪声，再用局部模型做一次前向重建。若轨迹位于真实数据的高密度区，重建误差小；若位于模态平均产生的低密度伪影区，重建误差显著增大。该误差在数学上关联于组合轨迹负对数似然（ELBO）的上界。
+  2) **重叠一致性**：计算相邻短片段在共享重叠区域的重建预测值之差。差值越大，说明两侧局部模型将共享状态拉向了不同模态。直接惩罚该不一致性，强制满足Bethe近似下的边缘一致性。
+- **架构细节**: 纯推理时模块，不改动底层扩散网络（通常为UNet或Transformer）。流程为：在反向去噪步骤 $t$，利用Tweedie公式一步预测干净轨迹 $\hat{\tau}_0^{(t)}$ $\rightarrow$ 计算自重建误差与重叠一致性误差 $\rightarrow$ 对两项误差求关于当前噪声轨迹 $\tau^{(t)}$ 的梯度 $\rightarrow$ 梯度归一化后，以权重 $w$ 叠加到扩散模型的标准均值更新中。仅增加单次前向/反向计算开销，无新增参数。
+- **核心 Loss**: 引导目标函数 $\mathcal{E}_{\mathrm{RCD}} = \mathcal{E}_{\mathrm{recon}}(\hat{\tau}_0; s) + \lambda_{\mathrm{ov}} \mathcal{E}_{\mathrm{ov}}$。无训练阶段Loss。推理时通过 $\nabla_{\tau^{(t)}} \mathcal{E}_{\mathrm{RCD}}$ 修正采样分布，使目标分布倾斜为 $\tilde{p}(\tau) \propto p_\theta(\tau) \exp(-w \mathcal{E}_{\mathrm{RCD}})$。
+
+**3. 实验结果**
+- **数据集和baseline**: **数据集**: OGBench基准，重点使用由不连续短片段构成的Stitch数据集，涵盖Point/Ant/HumanoidMaze导航、多Cube操作、AntSoccer，以及像素级观测的Latent空间规划。**Baseline**: 离线目标条件RL（GCBC, HIQL, QRL, CRL等）与扩散组合规划（GSC, CompDiffuser, CDGS）。
+- **评价指标**: 任务成功率（多目标达成比例，5种子平均±标准差）；物理可行性/有效轨迹率（不违反环境约束如穿墙的比例）；推理耗时对比。
+- **实验结果**: RCD在全部长程任务上成功率稳定领先。以AntMaze-Giant-Stitch为例，CompDiffuser的有效轨迹率仅15%~60%，RCD提升至接近100%。相比依赖群体搜索的CDGS，RCD在成功率持平或更高的前提下，推理速度提升约一个数量级（省去了反复重采样、排序、剪枝的开销）。在像素观测（Latent规划）任务中同样有效。消融实验证实自重建误差与重叠一致性互补，单用效果均弱于组合使用，且引导权重与噪声探测步长 $s$ 对稳定性影响可控。
+
+---
+</script>
+            <script>
+                const rawMdElement = document.getElementById('raw-markdown');
+                if (rawMdElement) {
+                    document.getElementById('content').innerHTML = marked.parse(rawMdElement.textContent);
+                    // 渲染后触发公式排版
+                    if (window.MathJax && window.MathJax.typesetPromise) {
+                        window.MathJax.typesetPromise();
+                    }
+                }
+                function copySources() { /* 原代码保持不变 */ }
+            </script>
+        </body>
+        </html>
+        
